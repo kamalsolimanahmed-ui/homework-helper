@@ -1,79 +1,33 @@
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/router";
 
 export default function ScanButton() {
+  const inputRef = useRef(null);
   const [loading, setLoading] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [cameraError, setCameraError] = useState("");
-  const [cameraReady, setCameraReady] = useState(false);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [homeworkText, setHomeworkText] = useState("");
   const router = useRouter();
 
-  async function startCamera() {
-    try {
-      setCameraError("");
-      setCameraReady(false);
-
-      console.log("Starting camera...");
-
-      // FIX #3: Use facingMode with ideal
-      // FIX #6: Add stream logging
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-
-      console.log("✅ STREAM STARTED:", stream);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-
-        // Wait for video to be ready
-        videoRef.current.onloadedmetadata = () => {
-          console.log("✅ Video ready");
-          setCameraReady(true);
-        };
-      }
-    } catch (error) {
-      console.error("❌ Camera Error:", error.message);
-      setCameraError(`Camera failed: ${error.message}`);
-      setShowCamera(false);
-    }
+  function openCamera() {
+    inputRef.current.click();
   }
 
-  async function captureAndProcess() {
+  async function handleFileCapture(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // After user captures, ask them to type the text
+    const extractedText = prompt(
+      "📸 Photo captured!\n\nType the homework text you see in the photo:"
+    );
+
+    if (!extractedText || !extractedText.trim()) {
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      if (!videoRef.current || !canvasRef.current) return;
-
-      // Draw video to canvas
-      const context = canvasRef.current.getContext("2d");
-      canvasRef.current.width = videoRef.current.videoWidth;
-      canvasRef.current.height = videoRef.current.videoHeight;
-      context.drawImage(videoRef.current, 0, 0);
-
-      // Stop camera
-      if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      }
-
-      setShowCamera(false);
-      setCameraReady(false);
-
-      // Ask user to type text
-      const extractedText = prompt(
-        "📸 Photo captured!\n\nType the homework text you see:"
-      );
-
-      if (!extractedText || !extractedText.trim()) {
-        return;
-      }
-
-      setLoading(true);
       console.log("Sending to API...");
 
       const res = await fetch("/api/scan", {
@@ -89,7 +43,7 @@ export default function ScanButton() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert("Error: " + (data.error || "Failed"));
+        alert("Error: " + (data.error || "Failed to process"));
         setLoading(false);
         return;
       }
@@ -103,135 +57,92 @@ export default function ScanButton() {
     }
   }
 
-  if (showCamera) {
+  if (showTextInput) {
     return (
       <div
         style={{
           position: "fixed",
           inset: 0,
-          backgroundColor: "black",
-          zIndex: 50,
+          backgroundColor: "rgba(0,0,0,0.5)",
           display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1rem",
+          zIndex: 50,
         }}
       >
-        {/* FIX #1: Explicit video sizing + FIX #4: muted attribute */}
         <div
           style={{
-            flex: 1,
-            position: "relative",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            backgroundColor: "white",
+            borderRadius: "1rem",
+            padding: "1.5rem",
+            width: "100%",
+            maxWidth: "400px",
           }}
         >
-          {!cameraReady && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundColor: "black",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-              }}
-            >
-              <div style={{ color: "white", textAlign: "center" }}>
-                <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>⏳</div>
-                <p>Loading camera...</p>
-              </div>
-            </div>
-          )}
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "1rem" }}>
+            📝 Enter Homework
+          </h2>
 
-          {/* FIX #1: Explicit inline styles for video */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
+          <textarea
+            value={homeworkText}
+            onChange={(e) => setHomeworkText(e.target.value)}
+            placeholder="Type or paste the homework problem here..."
             style={{
               width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              backgroundColor: "black",
+              padding: "0.75rem",
+              border: "2px solid #FACC15",
+              borderRadius: "0.5rem",
+              marginBottom: "1rem",
+              minHeight: "150px",
+              fontSize: "1rem",
+              fontFamily: "inherit",
             }}
           />
 
-          <canvas ref={canvasRef} style={{ display: "none" }} />
-
-          {/* Buttons - only show when camera ready */}
-          {cameraReady && (
-            <div
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button
+              onClick={() => {
+                setShowTextInput(false);
+                setHomeworkText("");
+              }}
               style={{
-                position: "absolute",
-                bottom: "1.5rem",
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                gap: "1rem",
+                flex: 1,
+                padding: "0.75rem",
+                backgroundColor: "#9CA3AF",
+                color: "white",
+                fontWeight: "bold",
+                borderRadius: "0.5rem",
+                border: "none",
+                cursor: "pointer",
               }}
             >
-              <button
-                onClick={() => {
-                  if (videoRef.current?.srcObject) {
-                    videoRef.current.srcObject
-                      .getTracks()
-                      .forEach((track) => track.stop());
-                  }
-                  setShowCamera(false);
-                  setCameraReady(false);
-                }}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  backgroundColor: "#4B5563",
-                  color: "white",
-                  fontWeight: "bold",
-                  borderRadius: "9999px",
-                  fontSize: "1.125rem",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                ❌ Close
-              </button>
-
-              <button
-                onClick={captureAndProcess}
-                disabled={loading}
-                style={{
-                  padding: "0.75rem 1.5rem",
-                  backgroundColor: loading ? "#CCAA00" : "#FACC15",
-                  color: "black",
-                  fontWeight: "bold",
-                  borderRadius: "9999px",
-                  fontSize: "1.125rem",
-                  border: "none",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.5 : 1,
-                }}
-              >
-                {loading ? "⏳ Processing..." : "📸 Capture"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Error message */}
-        {cameraError && (
-          <div
-            style={{
-              backgroundColor: "#EF4444",
-              color: "white",
-              padding: "1rem",
-              textAlign: "center",
-            }}
-          >
-            {cameraError}
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (homeworkText.trim()) {
+                  setLoading(true);
+                  handleFileCapture({ target: { files: [null] } });
+                }
+              }}
+              disabled={loading || !homeworkText.trim()}
+              style={{
+                flex: 1,
+                padding: "0.75rem",
+                backgroundColor: "#22C55E",
+                color: "white",
+                fontWeight: "bold",
+                borderRadius: "0.5rem",
+                border: "none",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading || !homeworkText.trim() ? 0.5 : 1,
+              }}
+            >
+              {loading ? "⏳ Processing..." : "✅ Submit"}
+            </button>
           </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -239,11 +150,7 @@ export default function ScanButton() {
   return (
     <>
       <button
-        onClick={() => {
-          setShowCamera(true);
-          // FIX #2: Start camera on click, not on mount
-          setTimeout(() => startCamera(), 100);
-        }}
+        onClick={openCamera}
         disabled={loading}
         style={{
           paddingLeft: "3rem",
@@ -264,6 +171,16 @@ export default function ScanButton() {
       >
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
+
+      {/* FIX: Use native file input with camera capture - 100% reliable on mobile */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileCapture}
+        style={{ display: "none" }}
+      />
     </>
   );
 }
