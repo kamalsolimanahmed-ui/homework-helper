@@ -1,115 +1,176 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 
 export default function ScanButton() {
   const [loading, setLoading] = useState(false);
-  const [showInput, setShowInput] = useState(false);
-  const [homeworkText, setHomeworkText] = useState("");
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const router = useRouter();
 
-  async function handleSubmit() {
-    if (!homeworkText.trim()) {
-      alert("❌ Please enter homework text!");
-      return;
-    }
+  useEffect(() => {
+    if (!showCamera) return;
 
-    setLoading(true);
-
-    try {
-      console.log("📤 Sending to /api/scan...");
-
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          extractedText: homeworkText,
-        }),
+    // Access device camera
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "environment" } })
+      .then((stream) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch((error) => {
+        console.error("Camera error:", error);
+        setCameraError("Camera not available. Use text input instead.");
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert("❌ Error: " + (data.error || "Failed to process"));
-        setLoading(false);
-        return;
+    return () => {
+      // Stop camera when component unmounts
+      if (videoRef.current?.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
       }
+    };
+  }, [showCamera]);
 
-      console.log("✅ Success! Storing result...");
+  async function captureAndProcess() {
+    try {
+      if (!videoRef.current || !canvasRef.current) return;
 
-      // Store result
-      localStorage.setItem("homeworkResult", JSON.stringify(data));
-      
-      console.log("📍 Redirecting to /results...");
-      router.push("/results");
+      // Draw video frame to canvas
+      const context = canvasRef.current.getContext("2d");
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      context.drawImage(videoRef.current, 0, 0);
+
+      // Convert canvas to blob
+      canvasRef.current.toBlob(async (blob) => {
+        try {
+          setLoading(true);
+
+          console.log("📸 Captured image size:", (blob.size / 1024 / 1024).toFixed(2), "MB");
+
+          // Stop camera
+          if (videoRef.current?.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+          }
+          setShowCamera(false);
+
+          // For now, ask user to type the text they see
+          const extractedText = prompt(
+            "📸 Photo captured!\n\nType the homework text you see in the photo:"
+          );
+
+          if (!extractedText || !extractedText.trim()) {
+            setLoading(false);
+            return;
+          }
+
+          console.log("📤 Sending to /api/scan...");
+
+          const res = await fetch("/api/scan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              extractedText: extractedText,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            alert("❌ Error: " + (data.error || "Failed to process"));
+            setLoading(false);
+            return;
+          }
+
+          console.log("✅ Success! Storing result...");
+
+          localStorage.setItem("homeworkResult", JSON.stringify(data));
+          router.push("/results");
+        } catch (error) {
+          console.error("❌ Error:", error);
+          alert("❌ Error: " + error.message);
+          setLoading(false);
+        }
+      }, "image/jpeg", 0.6);
     } catch (error) {
-      console.error("❌ Error:", error);
+      console.error("Capture error:", error);
       alert("❌ Error: " + error.message);
       setLoading(false);
     }
   }
 
-  if (showInput) {
+  if (showCamera) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-4">📝 Enter Homework</h2>
-          
-          <textarea
-            value={homeworkText}
-            onChange={(e) => setHomeworkText(e.target.value)}
-            placeholder="Type or paste the homework problem here..."
-            className="w-full p-3 border-2 border-yellow-400 rounded-lg mb-4 min-h-[150px] text-lg"
+      <div className="fixed inset-0 bg-black z-50 flex flex-col">
+        {/* Camera Preview */}
+        <div className="flex-1 relative overflow-hidden">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
           />
+          <canvas ref={canvasRef} className="hidden" />
 
-          <div className="flex gap-3">
+          {/* Capture Button */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4">
             <button
               onClick={() => {
-                setShowInput(false);
-                setHomeworkText("");
+                if (videoRef.current?.srcObject) {
+                  videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+                }
+                setShowCamera(false);
               }}
-              className="flex-1 px-4 py-3 bg-gray-400 text-white font-bold rounded-lg hover:bg-gray-500"
+              className="px-6 py-3 bg-gray-600 text-white font-bold rounded-full text-lg hover:bg-gray-700"
             >
-              Cancel
+              ❌ Close
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={captureAndProcess}
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 disabled:opacity-50"
+              className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-full text-lg hover:bg-yellow-500 disabled:opacity-50"
             >
-              {loading ? "⏳ Processing..." : "✅ Submit"}
+              {loading ? "⏳ Processing..." : "📸 Capture"}
             </button>
           </div>
         </div>
+
+        {/* Error Message */}
+        {cameraError && (
+          <div className="bg-red-500 text-white p-4 text-center">
+            {cameraError}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <>
-      <button
-        onClick={() => setShowInput(true)}
-        disabled={loading}
-        className="
-          px-12 py-5
-          bg-yellow-400 
-          text-black 
-          font-bold 
-          rounded-full
-          shadow-2xl 
-          text-xl
-          hover:bg-yellow-500 
-          hover:scale-105
-          disabled:opacity-50
-          transition-all
-          duration-200
-          z-50
-          relative
-        "
-      >
-        {loading ? "⏳ Processing..." : "Homework Scan"}
-      </button>
-    </>
+    <button
+      onClick={() => setShowCamera(true)}
+      disabled={loading}
+      className="
+        px-12 py-5
+        bg-yellow-400 
+        text-black 
+        font-bold 
+        rounded-full
+        shadow-2xl 
+        text-xl
+        hover:bg-yellow-500 
+        hover:scale-105
+        disabled:opacity-50
+        transition-all
+        duration-200
+        z-50
+        relative
+      "
+    >
+      {loading ? "⏳ Processing..." : "Homework Scan"}
+    </button>
   );
 }
