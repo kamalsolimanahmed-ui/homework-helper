@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/router";
 
 export default function ScanButton() {
@@ -10,103 +10,94 @@ export default function ScanButton() {
   const canvasRef = useRef(null);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!showCamera) return;
+  async function startCamera() {
+    try {
+      setCameraError("");
+      setCameraReady(false);
 
-    setCameraReady(false);
-    setCameraError("");
+      console.log("Starting camera...");
 
-    const startCamera = async () => {
-      try {
-        console.log("Starting camera...");
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-        });
+      // FIX #3: Use facingMode with ideal
+      // FIX #6: Add stream logging
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
 
-        console.log("Camera stream obtained");
+      console.log("✅ STREAM STARTED:", stream);
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            console.log("Video ready");
-            setCameraReady(true);
-          };
-        }
-      } catch (error) {
-        console.error("Camera error:", error);
-        setCameraError("Camera failed. Type text instead.");
-        setShowCamera(false);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+
+        // Wait for video to be ready
+        videoRef.current.onloadedmetadata = () => {
+          console.log("✅ Video ready");
+          setCameraReady(true);
+        };
       }
-    };
-
-    startCamera();
-
-    return () => {
-      if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [showCamera]);
+    } catch (error) {
+      console.error("❌ Camera Error:", error.message);
+      setCameraError(`Camera failed: ${error.message}`);
+      setShowCamera(false);
+    }
+  }
 
   async function captureAndProcess() {
     try {
       if (!videoRef.current || !canvasRef.current) return;
 
+      // Draw video to canvas
       const context = canvasRef.current.getContext("2d");
       canvasRef.current.width = videoRef.current.videoWidth;
       canvasRef.current.height = videoRef.current.videoHeight;
       context.drawImage(videoRef.current, 0, 0);
 
-      canvasRef.current.toBlob(async (blob) => {
-        try {
-          setLoading(true);
+      // Stop camera
+      if (videoRef.current?.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
+      }
 
-          // Stop camera
-          if (videoRef.current?.srcObject) {
-            videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-          }
-          setShowCamera(false);
+      setShowCamera(false);
+      setCameraReady(false);
 
-          // Ask user to type text
-          const extractedText = prompt(
-            "📸 Photo captured!\n\nType the homework text you see:"
-          );
+      // Ask user to type text
+      const extractedText = prompt(
+        "📸 Photo captured!\n\nType the homework text you see:"
+      );
 
-          if (!extractedText || !extractedText.trim()) {
-            setLoading(false);
-            return;
-          }
+      if (!extractedText || !extractedText.trim()) {
+        return;
+      }
 
-          console.log("Sending to API...");
+      setLoading(true);
+      console.log("Sending to API...");
 
-          const res = await fetch("/api/scan", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              extractedText: extractedText,
-            }),
-          });
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          extractedText: extractedText,
+        }),
+      });
 
-          const data = await res.json();
+      const data = await res.json();
 
-          if (!res.ok) {
-            alert("Error: " + (data.error || "Failed"));
-            setLoading(false);
-            return;
-          }
+      if (!res.ok) {
+        alert("Error: " + (data.error || "Failed"));
+        setLoading(false);
+        return;
+      }
 
-          localStorage.setItem("homeworkResult", JSON.stringify(data));
-          router.push("/results");
-        } catch (error) {
-          console.error("Error:", error);
-          alert("Error: " + error.message);
-          setLoading(false);
-        }
-      }, "image/jpeg", 0.6);
+      localStorage.setItem("homeworkResult", JSON.stringify(data));
+      router.push("/results");
     } catch (error) {
-      console.error("Capture error:", error);
+      console.error("Error:", error);
       alert("Error: " + error.message);
       setLoading(false);
     }
@@ -114,30 +105,75 @@ export default function ScanButton() {
 
   if (showCamera) {
     return (
-      <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Camera Preview */}
-        <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          backgroundColor: "black",
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* FIX #1: Explicit video sizing + FIX #4: muted attribute */}
+        <div
+          style={{
+            flex: 1,
+            position: "relative",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           {!cameraReady && (
-            <div className="absolute inset-0 bg-black flex items-center justify-center">
-              <div className="text-white text-center">
-                <div className="text-4xl mb-4">⏳</div>
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: "black",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+              }}
+            >
+              <div style={{ color: "white", textAlign: "center" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>⏳</div>
                 <p>Loading camera...</p>
               </div>
             </div>
           )}
 
+          {/* FIX #1: Explicit inline styles for video */}
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              backgroundColor: "black",
+            }}
           />
-          <canvas ref={canvasRef} className="hidden" />
 
-          {/* Buttons - Only show when camera ready */}
+          <canvas ref={canvasRef} style={{ display: "none" }} />
+
+          {/* Buttons - only show when camera ready */}
           {cameraReady && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4">
+            <div
+              style={{
+                position: "absolute",
+                bottom: "1.5rem",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "1rem",
+              }}
+            >
               <button
                 onClick={() => {
                   if (videoRef.current?.srcObject) {
@@ -148,14 +184,34 @@ export default function ScanButton() {
                   setShowCamera(false);
                   setCameraReady(false);
                 }}
-                className="px-6 py-3 bg-gray-600 text-white font-bold rounded-full text-lg hover:bg-gray-700"
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  backgroundColor: "#4B5563",
+                  color: "white",
+                  fontWeight: "bold",
+                  borderRadius: "9999px",
+                  fontSize: "1.125rem",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 ❌ Close
               </button>
+
               <button
                 onClick={captureAndProcess}
                 disabled={loading}
-                className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-full text-lg hover:bg-yellow-500 disabled:opacity-50"
+                style={{
+                  padding: "0.75rem 1.5rem",
+                  backgroundColor: loading ? "#CCAA00" : "#FACC15",
+                  color: "black",
+                  fontWeight: "bold",
+                  borderRadius: "9999px",
+                  fontSize: "1.125rem",
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  opacity: loading ? 0.5 : 1,
+                }}
               >
                 {loading ? "⏳ Processing..." : "📸 Capture"}
               </button>
@@ -163,9 +219,16 @@ export default function ScanButton() {
           )}
         </div>
 
-        {/* Error Message */}
+        {/* Error message */}
         {cameraError && (
-          <div className="bg-red-500 text-white p-4 text-center">
+          <div
+            style={{
+              backgroundColor: "#EF4444",
+              color: "white",
+              padding: "1rem",
+              textAlign: "center",
+            }}
+          >
             {cameraError}
           </div>
         )}
@@ -174,12 +237,33 @@ export default function ScanButton() {
   }
 
   return (
-    <button
-      onClick={() => setShowCamera(true)}
-      disabled={loading}
-      className="px-12 py-5 bg-yellow-400 text-black font-bold rounded-full shadow-2xl text-xl hover:bg-yellow-500 hover:scale-105 disabled:opacity-50 transition-all duration-200 z-50 relative"
-    >
-      {loading ? "⏳ Processing..." : "Homework Scan"}
-    </button>
+    <>
+      <button
+        onClick={() => {
+          setShowCamera(true);
+          // FIX #2: Start camera on click, not on mount
+          setTimeout(() => startCamera(), 100);
+        }}
+        disabled={loading}
+        style={{
+          paddingLeft: "3rem",
+          paddingRight: "3rem",
+          paddingTop: "1.25rem",
+          paddingBottom: "1.25rem",
+          backgroundColor: "#FACC15",
+          color: "black",
+          fontWeight: "bold",
+          borderRadius: "9999px",
+          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+          fontSize: "1.25rem",
+          border: "none",
+          cursor: loading ? "not-allowed" : "pointer",
+          opacity: loading ? 0.5 : 1,
+          transition: "all 200ms",
+        }}
+      >
+        {loading ? "⏳ Processing..." : "Homework Scan"}
+      </button>
+    </>
   );
 }
