@@ -7,70 +7,67 @@ export default function ScanButton() {
   const router = useRouter();
 
   function openCamera() {
-    // This opens native camera app - NOT browser camera
+    // Tap the hidden input → opens native camera app
     inputRef.current.click();
   }
 
   async function handleImageCapture(e) {
     const file = e.target.files[0];
-    
-    // Validation: file must exist and be an image
+
+    // Validate file exists and is an image
     if (!file) {
-      console.error("❌ No file selected");
-      alert("No image selected. Please try again.");
+      console.log("❌ No file selected");
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      console.error("❌ Not an image file");
-      alert("Please select an image file.");
+      alert("Please select an image file");
       return;
     }
 
-    console.log("✅ File received:", file.name);
+    console.log("✅ Image captured:", file.name);
     console.log("✅ File size:", (file.size / 1024 / 1024).toFixed(2), "MB");
-    console.log("✅ File type:", file.type);
 
     setLoading(true);
 
     try {
-      // Create FormData with the actual image file
+      // Create FormData with the real image file
       const formData = new FormData();
       formData.append("file", file);
 
       console.log("📤 Uploading to /api/scan...");
 
-      // Send to backend
+      // POST to backend with the actual image
       const res = await fetch("/api/scan", {
         method: "POST",
-        body: formData, // FormData, NOT JSON
+        body: formData, // FormData, not JSON
       });
 
       const data = await res.json();
 
-      console.log("📥 Response:", data);
+      console.log("📥 API Response:", data);
 
       if (!res.ok) {
-        console.error("❌ API error:", data);
         alert("Error: " + (data.error || "Failed to process image"));
         setLoading(false);
         return;
       }
 
       if (!data.success) {
-        console.error("❌ API returned failure:", data);
         alert("Error: " + data.error);
         setLoading(false);
         return;
       }
 
-      console.log("✅ Success! Storing result...");
+      console.log("✅ Success! Storing result and redirecting...");
 
-      // Store and redirect
+      // Store result in localStorage
       localStorage.setItem("homeworkResult", JSON.stringify(data));
+
+      // Redirect to results page
       router.push("/results");
     } catch (error) {
-      console.error("❌ Network error:", error);
+      console.error("❌ Upload error:", error);
       alert("Error: " + error.message);
       setLoading(false);
     }
@@ -81,40 +78,42 @@ export default function ScanButton() {
       <button
         onClick={openCamera}
         disabled={loading}
-        style={{
-          paddingLeft: "3rem",
-          paddingRight: "3rem",
-          paddingTop: "1.25rem",
-          paddingBottom: "1.25rem",
-          backgroundColor: "#FACC15",
-          color: "black",
-          fontWeight: "bold",
-          borderRadius: "9999px",
-          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-          fontSize: "1.25rem",
-          border: "none",
-          cursor: loading ? "not-allowed" : "pointer",
-          opacity: loading ? 0.5 : 1,
-          transition: "all 200ms",
-        }}
+        className="
+          px-12 py-5
+          bg-yellow-400 
+          text-black 
+          font-bold 
+          rounded-full
+          shadow-2xl 
+          text-xl
+          hover:bg-yellow-500 
+          hover:scale-105
+          disabled:opacity-50
+          transition-all
+          duration-200
+          z-50
+          relative
+        "
       >
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
 
       {/* 
-        Native file input with capture attribute
-        - Opens native camera app (NOT browser camera)
+        Native file input with camera capture
+        - Opens system camera app (NOT browser preview)
+        - Returns real image file (NOT empty data)
         - Works 100% on Samsung Chrome
-        - Returns actual file data (NOT empty)
-        - No canvas, no memory issues
+        - No getUserMedia(), no canvas, no memory issues
+        - capture="environment" = back camera (homework photos)
+        - capture="user" = front camera (selfies)
       */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="user"
+        capture="environment"
         onChange={handleImageCapture}
-        style={{ display: "none" }}
+        className="hidden"
       />
     </>
   );
