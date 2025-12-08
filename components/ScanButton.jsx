@@ -20,7 +20,6 @@ export default function ScanButton() {
         img.onload = () => {
           const canvas = document.createElement("canvas");
           
-          // Calculate new dimensions (max width 1200px)
           let width = img.width;
           let height = img.height;
           const maxWidth = 1200;
@@ -36,7 +35,6 @@ export default function ScanButton() {
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Convert to JPEG with 0.7 quality
           canvas.toBlob(
             (blob) => {
               resolve(blob);
@@ -57,11 +55,15 @@ export default function ScanButton() {
 
   async function uploadImage(e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
 
     setLoading(true);
 
     try {
+      console.log("📸 File selected:", file.name);
       console.log("📸 Original file size:", (file.size / 1024 / 1024).toFixed(2), "MB");
       
       // Compress image
@@ -72,24 +74,36 @@ export default function ScanButton() {
       const formData = new FormData();
       formData.append("file", compressedBlob, "homework.jpg");
 
+      console.log("📤 Sending to /api/scan...");
+
       // Send to backend
       const res = await fetch("/api/scan", {
         method: "POST",
         body: formData,
       });
 
+      console.log("Response status:", res.status);
+
       const data = await res.json();
 
+      console.log("Response data:", data);
+
       if (!res.ok) {
+        console.error("API Error:", data);
         alert("❌ Error: " + (data.error || "Failed to process"));
         setLoading(false);
         return;
       }
 
+      console.log("✅ Success! Storing result...");
+
       // Store result
       localStorage.setItem("homeworkResult", JSON.stringify(data));
+      
+      console.log("📍 Redirecting to /results...");
       router.push("/results");
     } catch (error) {
+      console.error("❌ Catch error:", error);
       alert("❌ Error: " + error.message);
       setLoading(false);
     }
