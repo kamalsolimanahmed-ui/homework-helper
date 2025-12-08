@@ -22,7 +22,7 @@ export default function ScanButton() {
           
           let width = img.width;
           let height = img.height;
-          const maxWidth = 1200;
+          const maxWidth = 800;
           
           if (width > maxWidth) {
             height = (height * maxWidth) / width;
@@ -40,7 +40,7 @@ export default function ScanButton() {
               resolve(blob);
             },
             "image/jpeg",
-            0.7
+            0.5
           );
         };
         
@@ -51,6 +51,25 @@ export default function ScanButton() {
       reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsDataURL(file);
     });
+  }
+
+  async function extractTextWithTesseract(blob) {
+    try {
+      // Check if Tesseract is loaded
+      if (!window.Tesseract) {
+        throw new Error("OCR library not loaded");
+      }
+
+      const { createWorker } = window.Tesseract;
+      const worker = await createWorker();
+      const result = await worker.recognize(blob);
+      await worker.terminate();
+
+      return result.data.text;
+    } catch (error) {
+      console.error("Tesseract OCR error:", error);
+      throw new Error("Failed to extract text - please try a clearer image");
+    }
   }
 
   async function uploadImage(e) {
@@ -70,16 +89,29 @@ export default function ScanButton() {
       const compressedBlob = await compressImage(file);
       console.log("✅ Compressed to:", (compressedBlob.size / 1024 / 1024).toFixed(2), "MB");
 
-      // Create FormData with compressed image
-      const formData = new FormData();
-      formData.append("file", compressedBlob, "homework.jpg");
+      console.log("🔍 Extracting text with OCR...");
+      
+      // Extract text using Tesseract OCR
+      const extractedText = await extractTextWithTesseract(compressedBlob);
+      
+      if (!extractedText || extractedText.trim().length === 0) {
+        alert("❌ Could not read text. Try a clearer photo!");
+        setLoading(false);
+        return;
+      }
 
+      console.log("✅ Text extracted:", extractedText);
       console.log("📤 Sending to /api/scan...");
 
-      // Send to backend
+      // Send ONLY text to backend (no file upload)
       const res = await fetch("/api/scan", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          extractedText: extractedText,
+        }),
       });
 
       console.log("Response status:", res.status);
@@ -103,7 +135,7 @@ export default function ScanButton() {
       console.log("📍 Redirecting to /results...");
       router.push("/results");
     } catch (error) {
-      console.error("❌ Catch error:", error);
+      console.error("❌ Error:", error);
       alert("❌ Error: " + error.message);
       setLoading(false);
     }
