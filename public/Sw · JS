@@ -1,0 +1,48 @@
+const CACHE_NAME = "homework-helper-v1";
+const urlsToCache = [
+  "/",
+  "/index.html",
+  "/_next/static/",
+];
+
+// Install event
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Cache opened");
+      return cache.addAll(urlsToCache.slice(0, 1));
+    })
+  );
+});
+
+// Activate event
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
+// Fetch event - Network first, fallback to cache
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const cache = caches.open(CACHE_NAME);
+        cache.then((c) => c.put(event.request, response.clone()));
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request);
+      })
+  );
+});
