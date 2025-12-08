@@ -15,6 +15,11 @@ export default async function handler(req, res) {
     }
 
     console.log("📝 Processing text...");
+    
+    // DEBUG: Check if API key exists
+    console.log("🔑 API Key check:");
+    console.log("   OPENAI_API_KEY:", process.env.OPENAI_API_KEY ? "✅ FOUND" : "❌ NOT FOUND");
+    console.log("   DEEPSEEK_API_KEY:", process.env.DEEPSEEK_API_KEY ? "✅ FOUND" : "❌ NOT FOUND");
 
     const explanation = await generateExplanation(extractedText);
 
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
       fun_tip: explanation.fun_tip || "Keep learning! 🌟",
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error:", error);
     return res.status(500).json({
       error: error.message || "Failed to process",
     });
@@ -36,11 +41,19 @@ export default async function handler(req, res) {
 
 async function generateExplanation(text) {
   try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    
+    console.log("🔑 Using API Key:", apiKey ? apiKey.substring(0, 10) + "..." : "NONE");
+
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY not set in Vercel environment variables");
+    }
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
@@ -49,11 +62,11 @@ async function generateExplanation(text) {
             role: "user",
             content: `Explain this homework to a 5-year-old: "${text}"
 
-Return ONLY JSON:
+Return ONLY JSON (no markdown):
 {
-  "simple_answer": "1 sentence",
-  "explanation_for_kid": "2-3 sentences with example",
-  "detailed_steps": "1. Step\\n2. Step\\n3. Step",
+  "simple_answer": "1 short sentence",
+  "explanation_for_kid": "2-3 simple sentences with example",
+  "detailed_steps": "1. First\\n2. Then\\n3. Done",
   "fun_tip": "Fun memory trick"
 }`,
           },
@@ -64,19 +77,23 @@ Return ONLY JSON:
 
     const data = await response.json();
     
-    if (!data.choices?.[0]?.message?.content) {
-      throw new Error("No response from API");
+    console.log("📤 API Response status:", response.status);
+
+    if (!response.ok) {
+      console.error("❌ OpenAI Error:", data);
+      throw new Error(data.error?.message || "OpenAI API failed");
     }
 
-    const text = data.choices[0].message.content;
-    return JSON.parse(text);
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error("No response from OpenAI");
+    }
+
+    const responseText = data.choices[0].message.content;
+    console.log("✅ Raw response:", responseText);
+
+    return JSON.parse(responseText);
   } catch (error) {
-    console.error("API Error:", error);
-    return {
-      simple_answer: "Great question!",
-      explanation_for_kid: "Keep learning and have fun!",
-      detailed_steps: "1. Try\n2. Think\n3. Learn",
-      fun_tip: "You got this! 🚀",
-    };
+    console.error("❌ API Error:", error.message);
+    throw error;
   }
 }
