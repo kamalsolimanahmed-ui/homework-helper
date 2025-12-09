@@ -24,7 +24,7 @@ async function extractTextFromImage(imageBase64) {
             content: [
               {
                 type: 'text',
-                text: 'Extract ALL text from this homework image. Return ONLY the text, nothing else.',
+               text: 'Extract EVERY SINGLE text, equation, problem, and number visible in this image. Return ABSOLUTELY ALL text, nothing missed.',
               },
               {
                 type: 'image_url',
@@ -35,7 +35,7 @@ async function extractTextFromImage(imageBase64) {
             ],
           },
         ],
-        max_tokens: 500,
+        max_tokens: 1000,
       }),
     });
 
@@ -70,9 +70,9 @@ async function generateExplanation(homeworkText) {
         messages: [
           {
             role: 'user',
-            content: `You are a friendly homework tutor for kids ages 3-10. Explain this homework in VERY SIMPLE words.
+            content: `You are a friendly homework tutor for kids ages 3-10. Explain EACH and EVERY homework problem/equation in VERY SIMPLE words.
 
-Homework: "${homeworkText}"
+Homework (may have multiple problems): "${homeworkText}"
 
 Return ONLY this JSON (no markdown, no backticks):
 {
