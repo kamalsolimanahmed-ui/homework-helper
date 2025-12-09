@@ -3,12 +3,18 @@ import ScanButton from "../components/ScanButton";
 
 export default function Home() {
   const [parentMode, setParentMode] = useState(false);
+  const [lang, setLang] = useState("en");
 
-  // Load saved mode from localStorage
+  // Load saved mode and language from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("parentMode");
-    if (saved) {
-      setParentMode(saved === "true");
+    const savedMode = localStorage.getItem("parentMode");
+    const savedLang = localStorage.getItem("lang");
+    
+    if (savedMode) {
+      setParentMode(savedMode === "true");
+    }
+    if (savedLang) {
+      setLang(savedLang);
     }
   }, []);
 
@@ -22,65 +28,107 @@ export default function Home() {
     setParentMode(true);
   }
 
+  function handleLanguageChange(e) {
+    const newLang = e.target.value;
+    localStorage.setItem("lang", newLang);
+    setLang(newLang);
+  }
+
+  const langLabels = {
+    en: "🇺🇸 English (USA)",
+    es: "🇪🇸 Español",
+    fr: "🇫🇷 Français",
+    de: "🇩🇪 Deutsch",
+    ar: "🇸🇦 العربية",
+  };
+
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex flex-col items-center justify-center p-4">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex flex-col items-center justify-center p-4">
+      {/* Language Selector - Top Right */}
+      <div className="absolute top-6 right-6 z-50">
+        <div className="flex items-center gap-2 bg-white bg-opacity-95 rounded-full px-4 py-2 shadow-lg">
+          <span className="text-blue-600 text-xl">🌐</span>
+          <select
+            value={lang}
+            onChange={handleLanguageChange}
+            className="bg-transparent font-bold text-gray-800 focus:outline-none cursor-pointer text-sm"
+          >
+            <option value="en">🇺🇸 English (USA)</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="ar">🇸🇦 العربية</option>
+          </select>
+        </div>
+      </div>
+
       {/* Main Container */}
-      <div className="w-full max-w-lg">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-6xl font-black text-white mb-3 drop-shadow-lg">
-            📚 Homework Helper
-          </h1>
-          <p className="text-2xl text-white font-bold drop-shadow-md">
-            Quick answers. Smart learning.
-          </p>
+      <div className="w-full max-w-2xl flex flex-col items-center">
+        {/* Hero Section with Characters and Icons */}
+        <div className="relative w-full h-96 flex items-center justify-center mb-8">
+          {/* Background with hero images (using placeholder styling) */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* This is where your Canva hero image would go */}
+            <div className="text-center">
+              <div className="text-6xl mb-4">⚡</div>
+              <h1 className="text-6xl font-black text-yellow-400 drop-shadow-lg mb-3">
+                HOMEWORK
+              </h1>
+              <h2 className="text-5xl font-black text-yellow-400 drop-shadow-lg mb-4">
+                HELPER AI
+              </h2>
+              <p className="text-xl text-white font-semibold drop-shadow-md">
+                Smart help for kids + parents
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Mode Selection */}
-        <div className="mb-8">
-          <p className="text-white text-center text-lg font-bold mb-6">
+        <div className="mb-8 w-full">
+          <p className="text-white text-center text-lg font-bold mb-4">
             Who's doing homework?
           </p>
 
-          <div className="flex gap-4 mb-8">
+          <div className="flex gap-4 justify-center mb-8">
             {/* Kid Mode Button */}
             <button
               onClick={handleKidMode}
               className={`
-                flex-1 py-6 px-4 rounded-2xl font-bold text-lg
+                py-4 px-6 rounded-2xl font-bold text-base
                 transition-all duration-300 transform
                 ${
                   parentMode === false
-                    ? "bg-green-400 scale-105 shadow-2xl ring-4 ring-white"
-                    : "bg-green-300 opacity-70 hover:opacity-100"
+                    ? "bg-green-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
+                    : "bg-green-600 opacity-70 hover:opacity-100"
                 }
               `}
             >
-              <span className="text-4xl mb-2 block">👧</span>
-              <span className="text-gray-800">Kid Mode</span>
+              <span className="text-2xl mb-1 block">👧</span>
+              <span className="text-white">Kid Mode</span>
             </button>
 
             {/* Parent Mode Button */}
             <button
               onClick={handleParentMode}
               className={`
-                flex-1 py-6 px-4 rounded-2xl font-bold text-lg
+                py-4 px-6 rounded-2xl font-bold text-base
                 transition-all duration-300 transform
                 ${
                   parentMode === true
-                    ? "bg-blue-400 scale-105 shadow-2xl ring-4 ring-white"
-                    : "bg-blue-300 opacity-70 hover:opacity-100"
+                    ? "bg-blue-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
+                    : "bg-blue-600 opacity-70 hover:opacity-100"
                 }
               `}
             >
-              <span className="text-4xl mb-2 block">👨‍💼</span>
-              <span className="text-gray-800">Parent Mode</span>
+              <span className="text-2xl mb-1 block">👨‍💼</span>
+              <span className="text-white">Parent Mode</span>
             </button>
           </div>
 
           {/* Mode Description */}
-          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-4 mb-8">
-            <p className="text-white text-center font-semibold">
+          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-3 text-center mb-8">
+            <p className="text-white text-sm font-semibold">
               {parentMode === false
                 ? "✨ Simple explanations for kids ages 7-10"
                 : "📊 Professional explanations for adults"}
@@ -91,63 +139,6 @@ export default function Home() {
         {/* Scan Button */}
         <div className="flex justify-center mb-8">
           <ScanButton />
-        </div>
-
-        {/* Info Cards */}
-        <div className="space-y-4">
-          {/* Card 1 */}
-          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">📷</span>
-              <div>
-                <h3 className="text-white font-bold text-lg">Take a Photo</h3>
-                <p className="text-white text-sm opacity-90">
-                  Scan your homework with your camera
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2 */}
-          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">🤖</span>
-              <div>
-                <h3 className="text-white font-bold text-lg">Get Instant Help</h3>
-                <p className="text-white text-sm opacity-90">
-                  AI analyzes your homework instantly
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">💡</span>
-              <div>
-                <h3 className="text-white font-bold text-lg">Learn Better</h3>
-                <p className="text-white text-sm opacity-90">
-                  Understand the concepts, not just answers
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Language Selector */}
-        <div className="mt-8 absolute top-4 right-4 z-50">
-          <select
-            onChange={(e) => localStorage.setItem("lang", e.target.value)}
-            defaultValue={typeof window !== "undefined" ? localStorage.getItem("lang") || "en" : "en"}
-            className="px-4 py-2 rounded-lg font-bold bg-white text-gray-800 shadow-lg border-2 border-white"
-          >
-            <option value="en">🇺🇸 English</option>
-            <option value="es">🇪🇸 Español</option>
-            <option value="fr">🇫🇷 Français</option>
-            <option value="de">🇩🇪 Deutsch</option>
-            <option value="ar">🇸🇦 العربية</option>
-          </select>
         </div>
       </div>
     </div>
