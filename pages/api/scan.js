@@ -1,44 +1,36 @@
-import formidable from "formidable";
-import fs from "fs";
-import path from "path";
-import fetch from "node-fetch";
+const busboy = require('busboy');
+const fetch = require('node-fetch');
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // Disable default body parser to handle multipart manually
   },
 };
 
-async function extractTextFromImage(imagePath) {
+async function extractTextFromImage(imageBase64) {
   try {
-    // Read image as base64
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = imageBuffer.toString("base64");
+    console.log('📸 Sending image to OpenAI Vision API...');
 
-    console.log("📸 Image loaded, size:", imageBuffer.length, "bytes");
-
-    // Use Claude vision API to extract text (cheaper than OpenAI vision)
-    // Or use OpenAI if you prefer
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini", // Has vision capability
+        model: 'gpt-4o-mini',
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: [
               {
-                type: "text",
-                text: "Extract ALL text from this homework image. Return ONLY the text, nothing else.",
+                type: 'text',
+                text: 'Extract ALL text from this homework image. Return ONLY the text, nothing else.',
               },
               {
-                type: "image_url",
+                type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${base64Image}`,
+                  url: `data:image/jpeg;base64,${imageBase64}`,
                 },
               },
             ],
@@ -51,31 +43,34 @@ async function extractTextFromImage(imagePath) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Vision API error:", data);
-      throw new Error(data.error?.message || "Vision API failed");
+      console.error('Vision API error:', data);
+      throw new Error(data.error?.message || 'Vision API failed');
     }
 
     const extractedText = data.choices[0].message.content;
+    console.log('✅ Text extracted from image');
     return extractedText;
   } catch (error) {
-    console.error("❌ OCR Error:", error);
-    throw new Error("Failed to extract text from image");
+    console.error('❌ OCR Error:', error);
+    throw new Error('Failed to extract text from image');
   }
 }
 
 async function generateExplanation(homeworkText) {
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
+    console.log('🤖 Generating kid-friendly explanation...');
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: 'gpt-4o-mini',
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: `You are a friendly homework tutor for kids ages 3-10. Explain this homework in VERY SIMPLE words.
 
 Homework: "${homeworkText}"
@@ -97,7 +92,8 @@ Return ONLY this JSON (no markdown, no backticks):
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error?.message || "API failed");
+      console.error('Explanation API error:', data);
+      throw new Error(data.error?.message || 'Explanation API failed');
     }
 
     const responseText = data.choices[0].message.content;
@@ -106,94 +102,105 @@ Return ONLY this JSON (no markdown, no backticks):
     try {
       explanation = JSON.parse(responseText);
     } catch (e) {
+      console.warn('JSON parse error, using fallback');
       explanation = {
-        simple_answer: "Great question!",
+        simple_answer: 'Great question!',
         explanation_for_kid: responseText,
-        detailed_steps: "1. Read it\n2. Think\n3. Learn!",
-        fun_tip: "Keep practicing! 🌟",
+        detailed_steps: '1. Read it\n2. Think\n3. Learn!',
+        fun_tip: 'Keep practicing! 🌟',
       };
     }
 
+    console.log('✅ Explanation generated');
     return explanation;
   } catch (error) {
-    console.error("❌ Explanation error:", error);
+    console.error('❌ Explanation error:', error);
     throw error;
   }
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let tempFilePath = null;
+  // Parse multipart form data in-memory (NO disk writes)
+  const bb = busboy({ headers: req.headers });
+  let imageBuffer = null;
+  let fileName = '';
 
-  try {
-    // Create tmp directory
-    const tmpDir = path.join(process.cwd(), "tmp");
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true });
-    }
-
-    // Parse multipart form data
-    const form = formidable({
-      uploadDir: tmpDir,
-      keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10MB
-    });
-
-    const [fields, files] = await form.parse(req);
-    const uploadedFile = files.file?.[0];
-
-    if (!uploadedFile) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
-    tempFilePath = uploadedFile.filepath;
-
-    console.log("✅ File received:", uploadedFile.originalFilename);
-    console.log("✅ File size:", uploadedFile.size, "bytes");
-
-    // Step 1: Extract text from image
-    console.log("📸 Extracting text from image...");
-    const extractedText = await extractTextFromImage(tempFilePath);
-
-    if (!extractedText || extractedText.trim().length === 0) {
-      return res.status(400).json({
-        error: "Could not read text from image. Try a clearer photo!",
-      });
-    }
-
-    console.log("✅ Text extracted");
-
-    // Step 2: Generate explanation
-    console.log("🤖 Generating explanation...");
-    const explanation = await generateExplanation(extractedText);
-
-    console.log("✅ Explanation generated");
-
-    // Return success
-    return res.status(200).json({
-      success: true,
-      extracted_text: extractedText,
-      simple_answer: explanation.simple_answer,
-      explanation_for_kid: explanation.explanation_for_kid,
-      detailed_steps: explanation.detailed_steps,
-      fun_tip: explanation.fun_tip,
-    });
-  } catch (error) {
-    console.error("❌ Scan API Error:", error);
-    return res.status(500).json({
-      error: error.message || "Failed to process image",
-    });
-  } finally {
-    // Clean up temp file
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch (e) {
-        console.log("Cleanup warning:", e.message);
+  return new Promise((resolve) => {
+    bb.on('file', (fieldname, file, info) => {
+      if (fieldname !== 'file') {
+        file.resume();
+        return;
       }
-    }
-  }
+
+      const chunks = [];
+
+      file.on('data', (data) => {
+        chunks.push(data);
+      });
+
+      file.on('end', () => {
+        imageBuffer = Buffer.concat(chunks);
+        fileName = info.filename;
+        console.log(`✅ File received: ${fileName}, size: ${imageBuffer.length} bytes`);
+      });
+
+      file.on('error', (error) => {
+        console.error('File stream error:', error);
+        res.status(400).json({ error: 'Failed to upload file' });
+        resolve();
+      });
+    });
+
+    bb.on('close', async () => {
+      try {
+        // Validate file
+        if (!imageBuffer || imageBuffer.length === 0) {
+          console.error('❌ No file data received');
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        console.log(`📦 Processing image: ${imageBuffer.length} bytes`);
+
+        // Convert image buffer to base64 for API
+        const imageBase64 = imageBuffer.toString('base64');
+
+        // Step 1: Extract text from image using Vision API
+        const extractedText = await extractTextFromImage(imageBase64);
+
+        if (!extractedText || extractedText.trim().length === 0) {
+          console.error('❌ No text extracted from image');
+          return res.status(400).json({
+            error: 'Could not read text from image. Try a clearer photo!',
+          });
+        }
+
+        console.log('📝 Extracted text:', extractedText.substring(0, 100) + '...');
+
+        // Step 2: Generate kid-friendly explanation
+        const explanation = await generateExplanation(extractedText);
+
+        // Step 3: Return success with all results
+        console.log('✅ Success! Sending results...');
+        return res.status(200).json({
+          success: true,
+          extracted_text: extractedText,
+          simple_answer: explanation.simple_answer,
+          explanation_for_kid: explanation.explanation_for_kid,
+          detailed_steps: explanation.detailed_steps,
+          fun_tip: explanation.fun_tip,
+        });
+      } catch (error) {
+        console.error('❌ API Error:', error);
+        return res.status(500).json({
+          error: error.message || 'Failed to process image',
+        });
+      }
+    });
+
+    req.pipe(bb);
+  });
 }
