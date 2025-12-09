@@ -63,7 +63,7 @@ async function generateExplanation(homeworkText, lang = 'en') {
     if (lang === 'es') langName = 'Spanish';
     if (lang === 'ar') langName = 'Arabic';
 
-    console.log(`🤖 Generating funny explanations in ${langName}...`);
+    console.log(`🏆 Generating AWARD-WINNING explanations in ${langName}...`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -76,30 +76,72 @@ async function generateExplanation(homeworkText, lang = 'en') {
         messages: [
           {
             role: 'user',
-            content: `You are a FUNNY, SILLY homework tutor for kids ages 3-10. Make them LAUGH while they learn! Answer ONLY in ${langName}.
+            content: `You are a LEGENDARY 30+ YEAR AWARD-WINNING TEACHER. Your explanations have won international teaching awards. You make kids FALL IN LOVE with learning.
 
-Homework to help with:
+Your teaching style:
+✓ Tell STORIES not just facts
+✓ Connect to REAL LIFE (pizza, friends, games, animals they love)
+✓ Use SENSORY details (see, hear, feel, taste, smell)
+✓ Make kids feel like HEROES on a quest
+✓ Use BRAIN SCIENCE memory tricks
+✓ Make them LAUGH while learning
+✓ Challenge them to think DEEPER
+✓ Celebrate their INTELLIGENCE
+
+Homework to teach:
 "${homeworkText}"
 
-SOLVE EVERY PROBLEM and make FUNNY JOKES about each answer!
+GOLDEN EXPLANATION FORMAT (AWARD-WINNING):
 
-Format EXACTLY like this with EACH answer on its OWN LINE:
-1. [Problem] = [Answer] 😂 [FUNNY MEMORY TRICK]
-2. [Problem] = [Answer] 🤣 [SILLY JOKE]
-3. [Problem] = [Answer] 😆 [FUNNY ANALOGY]
-(Keep going for EVERY problem)
+For EACH problem follow this EXACT structure:
 
-Return ONLY this JSON in ${langName} (no markdown, no backticks, no extra text):
+📍 PROBLEM: [Show the equation]
+
+🎯 THE QUEST: [Tell a story that matches the problem]
+Example: "Imagine you're collecting pizza slices for a party..."
+
+💭 HOW THE MIND WORKS: [Brain science trick to remember]
+Example: "Your brain LOVES stories! When you see 147 + 65, imagine 147 kids + 65 more kids joining..."
+
+🧠 THE MEMORY TRICK: [Use association/rhyme/pattern]
+Example: "147 + 65 = 212... Think: '2-1-2 is like a sandwich: cheese in middle!' 🥪"
+
+⚡ THE ANSWER: [Bold and celebrate]
+Answer = ${homeworkText} emoji
+
+🎨 WHY THIS MATTERS: [Real world connection]
+Example: "This helps you count money, trading cards, candy, friends, ANYTHING you collect!"
+
+🏆 YOU ARE A GENIUS IF YOU: [Challenge question]
+Example: "Can you figure out 212 - 65? (You already know the answer!)"
+
+---
+
+CRITICAL RULES:
+• Tell STORIES for each problem (not just math)
+• Use SENSORY words (imagine, see, hear, feel)
+• Include BRAIN SCIENCE (how memory works)
+• Make them feel like HEROES
+• Use REAL THINGS kids love (games, food, friends, animals)
+• EMOTIONAL connection not just facts
+• Challenge them to think DEEPER
+• Make them LAUGH (humor + learning = best)
+• CELEBRATE their intelligence
+• NUMBER each problem clearly
+
+Answer in ${langName} ONLY. Make it WORLD-CLASS.
+
+Return this JSON:
 {
-  "simple_answer": "Here's your homework solved with FUNNY tricks to remember!",
-  "explanation_for_kid": "FUNNY ANSWERS:\\n(Format with EACH answer on its own line with FUNNY emojis and jokes)",
-  "detailed_steps": "1. Look at each problem one at a time\\n2. Add or subtract the numbers\\n3. Write the answer under the line\\n4. Do this for EVERY problem on the sheet!",
-  "fun_tip": "Share these FUNNY tricks with your friends! Whoever laughs the hardest remembers best!"
+  "simple_answer": "🏆 You're about to become a MATH GENIUS! 🧠",
+  "explanation_for_kid": "[Use EXACT format above - tell stories, use sensory words, brain science, real-world connections, challenges, celebration - for EACH problem with clear separation]",
+  "detailed_steps": "1. Read the STORY behind each problem\\n2. Visualize it in your mind (imagine it!)\\n3. Remember the memory trick (it sticks!)\\n4. Use it anywhere you count\\n5. Challenge yourself with the GENIUS question!",
+  "fun_tip": "The BEST learners are storytellers! When you learn through stories, your brain keeps it FOREVER! Try teaching someone else - THAT'S when you know you're a genius! 🌟"
 }`,
           },
         ],
-        max_tokens: 2500,
-        temperature: 0.9,
+        max_tokens: 4000,
+        temperature: 0.95,
       }),
     });
 
@@ -118,14 +160,14 @@ Return ONLY this JSON in ${langName} (no markdown, no backticks, no extra text):
     } catch (e) {
       console.warn('JSON parse error, using fallback');
       explanation = {
-        simple_answer: 'Here are all the answers with FUNNY jokes!',
+        simple_answer: '🏆 You\'re about to become a GENIUS! 🧠',
         explanation_for_kid: responseText,
-        detailed_steps: '1. Read the funny joke\n2. Remember the answer\n3. Tell your friends!\n4. LAUGH together!',
-        fun_tip: 'The sillier the joke, the better you remember!',
+        detailed_steps: '1. Read the story\n2. Visualize it\n3. Remember the trick\n4. Use it everywhere\n5. Become a genius!',
+        fun_tip: 'The best learners are storytellers! 🌟',
       };
     }
 
-    console.log('✅ Funny explanations generated');
+    console.log('✅ AWARD-WINNING explanations generated');
     return explanation;
   } catch (error) {
     console.error('❌ Explanation error:', error);
@@ -195,7 +237,7 @@ export default async function handler(req, res) {
 
           const explanation = await generateExplanation(extractedText, lang);
 
-          console.log('✅ Success! Sending homework help...');
+          console.log('✅ Success! Sending AWARD-WINNING homework help...');
           return res.status(200).json({
             success: true,
             extracted_text: extractedText,
