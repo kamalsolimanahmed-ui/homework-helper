@@ -1,4 +1,4 @@
-const { default: busboy } = require('busboy');
+import Busboy from 'busboy';
 
 export const config = {
   api: {
@@ -99,7 +99,9 @@ Return ONLY this JSON (no markdown, no backticks):
 
     let explanation;
     try {
-      explanation = JSON.parse(responseText);
+      // Clean up potential markdown formatting if the model adds it despite instructions
+      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      explanation = JSON.parse(cleanJson);
     } catch (e) {
       console.warn('JSON parse error, using fallback');
       explanation = {
@@ -124,7 +126,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const bb = busboy({ headers: req.headers });
+    // Initialize Busboy with standard ESM import syntax
+    const bb = Busboy({ headers: req.headers });
+    
     let imageBuffer = null;
     let fileName = '';
 
@@ -179,7 +183,7 @@ export default async function handler(req, res) {
           const explanation = await generateExplanation(extractedText);
 
           console.log('✅ Success! Sending results...');
-          return res.status(200).json({
+          res.status(200).json({
             success: true,
             extracted_text: extractedText,
             simple_answer: explanation.simple_answer,
@@ -187,14 +191,17 @@ export default async function handler(req, res) {
             detailed_steps: explanation.detailed_steps,
             fun_tip: explanation.fun_tip,
           });
+          resolve();
         } catch (error) {
           console.error('❌ API Error:', error);
-          return res.status(500).json({
+          res.status(500).json({
             error: error.message || 'Failed to process image',
           });
+          resolve();
         }
       });
 
+      // Pipe the request to Busboy
       req.pipe(bb);
     });
   } catch (error) {
