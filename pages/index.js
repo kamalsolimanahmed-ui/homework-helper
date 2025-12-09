@@ -1,144 +1,153 @@
-import Head from "next/head";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import ScanButton from "../components/ScanButton";
 
 export default function Home() {
-  const [lang, setLang] = useState("en");
+  const [parentMode, setParentMode] = useState(false);
 
+  // Load saved mode from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("lang") || "en";
-    setLang(saved);
+    const saved = localStorage.getItem("parentMode");
+    if (saved) {
+      setParentMode(saved === "true");
+    }
   }, []);
 
-  const handleLangChange = (e) => {
-    const newLang = e.target.value;
-    setLang(newLang);
-    localStorage.setItem("lang", newLang);
-  };
+  function handleKidMode() {
+    localStorage.setItem("parentMode", "false");
+    setParentMode(false);
+  }
+
+  function handleParentMode() {
+    localStorage.setItem("parentMode", "true");
+    setParentMode(true);
+  }
 
   return (
-    <div
-      style={{
-        backgroundColor: "#0b0f25",
-        minHeight: "100vh",
-        width: "100%",
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      <Head>
-        <title>Homework Helper AI</title>
-      </Head>
+    <div className="w-full min-h-screen bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex flex-col items-center justify-center p-4">
+      {/* Main Container */}
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-6xl font-black text-white mb-3 drop-shadow-lg">
+            📚 Homework Helper
+          </h1>
+          <p className="text-2xl text-white font-bold drop-shadow-md">
+            Quick answers. Smart learning.
+          </p>
+        </div>
 
-      {/* LANGUAGE SELECTOR - PROFESSIONAL & VISIBLE */}
-      <div
-        style={{
-          position: "absolute",
-          top: "15px",
-          right: "15px",
-          zIndex: 100,
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          padding: "12px 18px",
-          borderRadius: "12px",
-          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        {/* LABEL */}
-        <span
-          style={{
-            fontSize: "14px",
-            fontWeight: "bold",
-            color: "#0b0f25",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          🌍 Language:
-        </span>
+        {/* Mode Selection */}
+        <div className="mb-8">
+          <p className="text-white text-center text-lg font-bold mb-6">
+            Who's doing homework?
+          </p>
 
-        {/* DROPDOWN */}
-        <select
-          value={lang}
-          onChange={handleLangChange}
-          style={{
-            padding: "8px 12px",
-            fontSize: "15px",
-            fontWeight: "600",
-            borderRadius: "8px",
-            border: "2px solid #FFD700",
-            backgroundColor: "#0b0f25",
-            color: "#FFD700",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(255, 215, 0, 0.2)",
-            transition: "all 0.3s ease",
-            appearance: "none",
-            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFD700' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 8px center",
-            backgroundSize: "20px",
-            paddingRight: "35px",
-            minWidth: "160px",
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.boxShadow = "0 4px 16px rgba(255, 215, 0, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.boxShadow = "0 4px 12px rgba(255, 215, 0, 0.2)";
-          }}
-        >
-          <option value="en">🇺🇸 English (USA)</option>
-          <option value="fr">🇫🇷 Français (French)</option>
-          <option value="de">🇩🇪 Deutsch (German)</option>
-          <option value="es">🇪🇸 Español (Spanish)</option>
-          <option value="ar">🇸🇦 العربية (Arabic)</option>
-        </select>
-      </div>
+          <div className="flex gap-4 mb-8">
+            {/* Kid Mode Button */}
+            <button
+              onClick={handleKidMode}
+              className={`
+                flex-1 py-6 px-4 rounded-2xl font-bold text-lg
+                transition-all duration-300 transform
+                ${
+                  parentMode === false
+                    ? "bg-green-400 scale-105 shadow-2xl ring-4 ring-white"
+                    : "bg-green-300 opacity-70 hover:opacity-100"
+                }
+              `}
+            >
+              <span className="text-4xl mb-2 block">👧</span>
+              <span className="text-gray-800">Kid Mode</span>
+            </button>
 
-      {/* HERO SECTION */}
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          paddingTop: "20px",
-        }}
-      >
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            maxWidth: "900px",
-          }}
-        >
-          {/* HERO IMAGE */}
-          <img
-            src="/hero.png"
-            alt="Homework Helper AI"
-            style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
-            }}
-          />
-
-          {/* SCAN BUTTON */}
-          <div
-            style={{
-              position: "absolute",
-              top: "58%",
-              left: "70%",
-              transform: "translateX(-50%)",
-              width: "60%",
-              zIndex: 50,
-            }}
-          >
-            <ScanButton />
+            {/* Parent Mode Button */}
+            <button
+              onClick={handleParentMode}
+              className={`
+                flex-1 py-6 px-4 rounded-2xl font-bold text-lg
+                transition-all duration-300 transform
+                ${
+                  parentMode === true
+                    ? "bg-blue-400 scale-105 shadow-2xl ring-4 ring-white"
+                    : "bg-blue-300 opacity-70 hover:opacity-100"
+                }
+              `}
+            >
+              <span className="text-4xl mb-2 block">👨‍💼</span>
+              <span className="text-gray-800">Parent Mode</span>
+            </button>
           </div>
+
+          {/* Mode Description */}
+          <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl p-4 mb-8">
+            <p className="text-white text-center font-semibold">
+              {parentMode === false
+                ? "✨ Simple explanations for kids ages 7-10"
+                : "📊 Professional explanations for adults"}
+            </p>
+          </div>
+        </div>
+
+        {/* Scan Button */}
+        <div className="flex justify-center mb-8">
+          <ScanButton />
+        </div>
+
+        {/* Info Cards */}
+        <div className="space-y-4">
+          {/* Card 1 */}
+          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">📷</span>
+              <div>
+                <h3 className="text-white font-bold text-lg">Take a Photo</h3>
+                <p className="text-white text-sm opacity-90">
+                  Scan your homework with your camera
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">🤖</span>
+              <div>
+                <h3 className="text-white font-bold text-lg">Get Instant Help</h3>
+                <p className="text-white text-sm opacity-90">
+                  AI analyzes your homework instantly
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div className="bg-white bg-opacity-30 backdrop-blur-sm rounded-xl p-5 border-2 border-white">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">💡</span>
+              <div>
+                <h3 className="text-white font-bold text-lg">Learn Better</h3>
+                <p className="text-white text-sm opacity-90">
+                  Understand the concepts, not just answers
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Language Selector */}
+        <div className="mt-8 absolute top-4 right-4 z-50">
+          <select
+            onChange={(e) => localStorage.setItem("lang", e.target.value)}
+            defaultValue={typeof window !== "undefined" ? localStorage.getItem("lang") || "en" : "en"}
+            className="px-4 py-2 rounded-lg font-bold bg-white text-gray-800 shadow-lg border-2 border-white"
+          >
+            <option value="en">🇺🇸 English</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="ar">🇸🇦 العربية</option>
+          </select>
         </div>
       </div>
     </div>

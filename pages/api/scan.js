@@ -55,7 +55,7 @@ async function extractTextFromImage(imageBase64) {
   }
 }
 
-async function generateExplanation(homeworkText, lang = 'en') {
+async function generateExplanation(homeworkText, lang = 'en', parent = false) {
   try {
     let langName = 'English';
     if (lang === 'fr') langName = 'French';
@@ -63,7 +63,87 @@ async function generateExplanation(homeworkText, lang = 'en') {
     if (lang === 'es') langName = 'Spanish';
     if (lang === 'ar') langName = 'Arabic';
 
-    console.log(`🎯 Generating CLEAR simple explanations in ${langName}...`);
+    const mode = parent ? 'PARENT (professional)' : 'KID (simple)';
+    console.log(`🤖 Generating ${mode} explanations in ${langName}...`);
+
+    // CONSTRUCT PROMPT BASED ON MODE
+    const modeInstructions = parent ? `
+PARENT MODE - PROFESSIONAL EXPLANATION:
+• Clear, logical reasoning
+• Short professional paragraphs
+• ZERO emojis
+• Adult vocabulary
+• Direct step-by-step
+• Explain WHY the method works
+• Trustworthy tone
+• No storytelling or silly examples
+` : `
+KID MODE - SIMPLE EXPLANATION (ages 7-10):
+• Very short sentences (5-12 words max)
+• Encouraging and supportive tone
+• Simple vocabulary kids understand
+• Max 1-2 emojis TOTAL (not per line)
+• No long stories or paragraphs
+• Clear math logic, not dramatic
+• Say things like: "Let's solve it together!"
+• Good for kids who struggle
+`;
+
+    const topicInstructions = `
+TOPIC CLASSIFICATION:
+Analyze the homework and return the topic in English ONLY:
+- "addition" (adding numbers)
+- "subtraction" (subtracting numbers)
+- "multiplication" (times/multiply)
+- "division" (divide/split)
+- "fractions" (parts of whole numbers)
+- "decimals" (numbers with dots)
+- "algebra" (equations with letters like x)
+- "geometry" (shapes, angles, areas)
+- "word-problem" (story math problems)
+- "reading" (reading comprehension)
+- "grammar" (grammar rules, spelling)
+- "science" (science topics)
+- "unknown" (if you can't tell)
+
+Return the EXACT word from the list above. This MUST be in English.
+`;
+
+    const prompt = `You are a homework tutor. ${modeInstructions}
+
+Homework:
+"${homeworkText}"
+
+${topicInstructions}
+
+Respond in ${langName} ONLY (but topic must be English).
+
+For EACH problem:
+
+Problem X: [equation]
+
+simple_answer: [just the answer number]
+
+explanation:
+[${parent ? '2-3 clear sentences explaining the logic' : '2-4 short sentences, 5-12 words each'}]
+
+detailed_steps:
+• Step 1
+• Step 2
+• Step 3
+
+fun_tip: [${parent ? 'one professional tip' : 'one encouraging sentence'}]
+
+---
+
+Return ONLY JSON (no markdown):
+{
+  "simple_answer": "all problems solved",
+  "explanation": "[entire explanation for all problems]",
+  "detailed_steps": "1. Read\\n2. Calculate\\n3. Check",
+  "fun_tip": "[${parent ? 'A professional insight' : 'An encouraging message'}]",
+  "topic": "[ENGLISH word from the list above]"
+}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -76,74 +156,11 @@ async function generateExplanation(homeworkText, lang = 'en') {
         messages: [
           {
             role: 'user',
-            content: `Explain math for kids ages 7-10 in ${langName}.
-
-Homework:
-"${homeworkText}"
-
-RULES (MUST FOLLOW):
-✓ Use VERY SHORT sentences (5-10 words MAX)
-✓ No long stories or paragraphs
-✓ Use only 1-2 emojis total per problem
-✓ Show clear math thinking
-✓ Use simple real-life examples
-✓ Maximum 3-4 lines per problem
-✓ Fun but NOT silly
-
-FOR EACH PROBLEM, use this EXACT format:
-
-Problem X: [the equation]
-
-simple_answer: [just the answer number]
-
-explanation_for_kid: 
-[2-4 SHORT sentences. One sentence per line. Each sentence 5-10 words.]
-
-detailed_steps:
-• Step 1 (5-10 words)
-• Step 2 (5-10 words)
-• Step 3 (5-10 words)
-
-fun_tip: [One short encouraging sentence]
-
----
-
-EXAMPLE (follow EXACTLY):
-
-Problem 1: 147 + 65
-
-simple_answer: 212
-
-explanation_for_kid:
-You have 147 things.
-You get 65 more things.
-Now count them all together.
-That's 212 things!
-
-detailed_steps:
-• Put 147 in your head
-• Add 65 more to it
-• You get 212
-
-fun_tip: Adding is just counting up!
-
----
-
-NOW ANSWER FOR ALL PROBLEMS in ${langName}:
-
-${homeworkText}
-
-Return only JSON (no markdown):
-{
-  "simple_answer": "All answers solved!",
-  "explanation_for_kid": "[Format all problems as above]",
-  "detailed_steps": "1. Read each problem\\n2. Count carefully\\n3. Write the answer",
-  "fun_tip": "You're doing great! Keep practicing!"
-}`,
+            content: prompt,
           },
         ],
-        max_tokens: 3500,
-        temperature: 0.8,
+        max_tokens: 3000,
+        temperature: parent ? 0.7 : 0.8,
       }),
     });
 
@@ -162,14 +179,15 @@ Return only JSON (no markdown):
     } catch (e) {
       console.warn('JSON parse error, using fallback');
       explanation = {
-        simple_answer: 'All problems solved!',
-        explanation_for_kid: responseText,
-        detailed_steps: '1. Read the problem\n2. Do the math\n3. Write the answer',
-        fun_tip: 'Great job! You can do this!',
+        simple_answer: 'Problem solved',
+        explanation: responseText,
+        detailed_steps: '1. Read\n2. Calculate\n3. Check',
+        fun_tip: parent ? 'Practice helps!' : 'Great effort!',
+        topic: 'unknown',
       };
     }
 
-    console.log('✅ Simple clear explanations generated');
+    console.log('✅ Explanation generated');
     return explanation;
   } catch (error) {
     console.error('❌ Explanation error:', error);
@@ -182,7 +200,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // READ HEADERS
   const lang = req.headers['x-lang'] || 'en';
+  const parent = req.headers['x-parent'] === 'true';
 
   try {
     const bb = busboy({ headers: req.headers });
@@ -237,16 +257,19 @@ export default async function handler(req, res) {
 
           console.log('📝 Extracted text:', extractedText.substring(0, 100) + '...');
 
-          const explanation = await generateExplanation(extractedText, lang);
+          // PASS PARENT MODE TO FUNCTION
+          const explanation = await generateExplanation(extractedText, lang, parent);
 
-          console.log('✅ Success! Sending clear homework help...');
+          console.log('✅ Success! Sending homework help...');
           return res.status(200).json({
             success: true,
             extracted_text: extractedText,
             simple_answer: explanation.simple_answer,
-            explanation_for_kid: explanation.explanation_for_kid,
+            explanation: explanation.explanation,
             detailed_steps: explanation.detailed_steps,
             fun_tip: explanation.fun_tip,
+            topic: explanation.topic,
+            mode: parent ? 'parent' : 'kid',
           });
         } catch (error) {
           console.error('❌ API Error:', error);
