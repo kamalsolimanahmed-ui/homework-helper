@@ -1,213 +1,83 @@
-import Busboy from 'busboy';
-
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-async function extractTextFromImage(imageBase64) {
-  try {
-    console.log('📸 Sending image to OpenAI Vision API...');
+async function extractText(base64) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract all text from this image." },
+            {
+              type: "image_url",
+              image_url: { url: `data:image/jpeg;base64,${base64}` },
+            },
+          ],
+        },
+      ],
+    }),
+  });
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract ALL text from this homework image. Return ONLY the text, nothing else.',
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`,
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: 500,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Vision API error:', data);
-      throw new Error(data.error?.message || 'Vision API failed');
-    }
-
-    const extractedText = data.choices[0].message.content;
-    console.log('✅ Text extracted from image');
-    return extractedText;
-  } catch (error) {
-    console.error('❌ OCR Error:', error);
-    throw new Error('Failed to extract text from image');
-  }
+  const json = await res.json();
+  return json.choices[0].message.content;
 }
 
-async function generateExplanation(homeworkText) {
-  try {
-    console.log('🤖 Generating kid-friendly explanation...');
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'user',
-            content: `You are a friendly homework tutor for kids ages 3-10. Explain this homework in VERY SIMPLE words.
-
-Homework: "${homeworkText}"
-
-Return ONLY this JSON (no markdown, no backticks):
+async function explain(text) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `Return this JSON only:
 {
-  "simple_answer": "ONE short sentence a 3yo can understand",
-  "explanation_for_kid": "2-3 short sentences with a simple example. Add emojis!",
-  "detailed_steps": "1. Simple step\\n2. Next step\\n3. Last step",
-  "fun_tip": "One funny way to remember this!"
-}`,
-          },
-        ],
-        max_tokens: 300,
-        temperature: 0.7,
-      }),
-    });
+ "simple_answer": "",
+ "explanation_for_kid": "",
+ "detailed_steps": "",
+ "fun_tip": ""
+}
+Explain this: ${text}`,
+        },
+      ],
+    }),
+  });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Explanation API error:', data);
-      throw new Error(data.error?.message || 'Explanation API failed');
-    }
-
-    const responseText = data.choices[0].message.content;
-
-    let explanation;
-    try {
-      // Clean up potential markdown formatting if the model adds it despite instructions
-      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      explanation = JSON.parse(cleanJson);
-    } catch (e) {
-      console.warn('JSON parse error, using fallback');
-      explanation = {
-        simple_answer: 'Great question!',
-        explanation_for_kid: responseText,
-        detailed_steps: '1. Read it\n2. Think\n3. Learn!',
-        fun_tip: 'Keep practicing! 🌟',
-      };
-    }
-
-    console.log('✅ Explanation generated');
-    return explanation;
-  } catch (error) {
-    console.error('❌ Explanation error:', error);
-    throw error;
-  }
+  const json = await res.json();
+  return JSON.parse(json.choices[0].message.content);
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    // Initialize Busboy with standard ESM import syntax
-    const bb = Busboy({ headers: req.headers });
-    
-    let imageBuffer = null;
-    let fileName = '';
+    const form = await req.formData();        // <— THIS replaces Busboy & Formidable
+    const file = form.get("file");
 
-    return new Promise((resolve) => {
-      bb.on('file', (fieldname, file, info) => {
-        if (fieldname !== 'file') {
-          file.resume();
-          return;
-        }
+    if (!file) return res.status(400).json({ error: "No file uploaded" });
 
-        const chunks = [];
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString("base64");
 
-        file.on('data', (data) => {
-          chunks.push(data);
-        });
+    const text = await extractText(base64);
+    const result = await explain(text);
 
-        file.on('end', () => {
-          imageBuffer = Buffer.concat(chunks);
-          fileName = info.filename;
-          console.log(`✅ File received: ${fileName}, size: ${imageBuffer.length} bytes`);
-        });
-
-        file.on('error', (error) => {
-          console.error('File stream error:', error);
-          res.status(400).json({ error: 'Failed to upload file' });
-          resolve();
-        });
-      });
-
-      bb.on('close', async () => {
-        try {
-          if (!imageBuffer || imageBuffer.length === 0) {
-            console.error('❌ No file data received');
-            return res.status(400).json({ error: 'No file uploaded' });
-          }
-
-          console.log(`📦 Processing image: ${imageBuffer.length} bytes`);
-
-          const imageBase64 = imageBuffer.toString('base64');
-
-          const extractedText = await extractTextFromImage(imageBase64);
-
-          if (!extractedText || extractedText.trim().length === 0) {
-            console.error('❌ No text extracted from image');
-            return res.status(400).json({
-              error: 'Could not read text from image. Try a clearer photo!',
-            });
-          }
-
-          console.log('📝 Extracted text:', extractedText.substring(0, 100) + '...');
-
-          const explanation = await generateExplanation(extractedText);
-
-          console.log('✅ Success! Sending results...');
-          res.status(200).json({
-            success: true,
-            extracted_text: extractedText,
-            simple_answer: explanation.simple_answer,
-            explanation_for_kid: explanation.explanation_for_kid,
-            detailed_steps: explanation.detailed_steps,
-            fun_tip: explanation.fun_tip,
-          });
-          resolve();
-        } catch (error) {
-          console.error('❌ API Error:', error);
-          res.status(500).json({
-            error: error.message || 'Failed to process image',
-          });
-          resolve();
-        }
-      });
-
-      // Pipe the request to Busboy
-      req.pipe(bb);
-    });
-  } catch (error) {
-    console.error('❌ Handler Error:', error);
-    return res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    console.error("❌ Error:", err);
+    return res.status(500).json({ error: err.message });
   }
 }
