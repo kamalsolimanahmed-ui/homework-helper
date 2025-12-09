@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import ScanButton from "../components/ScanButton";
 
 export default function Home() {
   const [parentMode, setParentMode] = useState(false);
   const [lang, setLang] = useState("en");
+  const [imagesLoaded, setImagesLoaded] = useState(false);
 
-  // Load saved mode and language from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem("parentMode");
     const savedLang = localStorage.getItem("lang");
@@ -16,6 +17,8 @@ export default function Home() {
     if (savedLang) {
       setLang(savedLang);
     }
+    
+    setImagesLoaded(true);
   }, []);
 
   function handleKidMode() {
@@ -56,9 +59,8 @@ export default function Home() {
 
       {/* Main Container */}
       <div className="w-full max-w-2xl flex flex-col items-center">
-        {/* Hero Section with Characters and Icons */}
+        {/* Hero Section */}
         <div className="relative w-full h-96 flex items-center justify-center mb-8">
-          {/* This is where your Canva hero image would go */}
           <div className="text-center">
             <div className="text-6xl mb-4">⚡</div>
             <h1 className="text-6xl font-black text-yellow-400 drop-shadow-lg mb-3">
@@ -94,11 +96,18 @@ export default function Home() {
                 }
               `}
             >
-              <img
-                src="/kid.png"
-                alt="Kid Mode"
-                className="w-20 h-20 object-contain"
-              />
+              {imagesLoaded && (
+                <div className="relative w-20 h-20">
+                  <Image
+                    src="/kid.png"
+                    alt="Kid Mode"
+                    fill
+                    sizes="80px"
+                    priority
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+              )}
               <span className="text-white">Kid Mode</span>
             </button>
 
@@ -116,11 +125,18 @@ export default function Home() {
                 }
               `}
             >
-              <img
-                src="/parent.png"
-                alt="Parent Mode"
-                className="w-20 h-20 object-contain"
-              />
+              {imagesLoaded && (
+                <div className="relative w-20 h-20">
+                  <Image
+                    src="/parent.png"
+                    alt="Parent Mode"
+                    fill
+                    sizes="80px"
+                    priority
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+              )}
               <span className="text-white">Parent Mode</span>
             </button>
           </div>
