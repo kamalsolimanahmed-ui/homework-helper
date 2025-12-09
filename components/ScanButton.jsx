@@ -7,14 +7,12 @@ export default function ScanButton() {
   const router = useRouter();
 
   function openCamera() {
-    // Click hidden input → opens native camera app
     inputRef.current.click();
   }
 
   async function handleImageCapture(e) {
     const file = e.target.files[0];
 
-    // File validation
     if (!file) {
       console.log("❌ No file selected");
       return;
@@ -31,16 +29,19 @@ export default function ScanButton() {
     setLoading(true);
 
     try {
-      // Create FormData with REAL image file
       const formData = new FormData();
       formData.append("file", file);
 
       console.log("📤 Uploading to /api/scan...");
 
-      // Send to backend - NO manual Content-Type header!
+      const lang = localStorage.getItem("lang") || "en";
+
       const res = await fetch("/api/scan", {
         method: "POST",
-        body: formData, // Let browser set Content-Type automatically
+        body: formData,
+        headers: {
+          "x-lang": lang,
+        },
       });
 
       const data = await res.json();
@@ -63,7 +64,6 @@ export default function ScanButton() {
 
       console.log("✅ Success! Redirecting to results...");
 
-      // Store and redirect
       localStorage.setItem("homeworkResult", JSON.stringify(data));
       router.push("/results");
     } catch (error) {
@@ -98,7 +98,6 @@ export default function ScanButton() {
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
 
-      {/* Native camera input - NO getUserMedia, NO canvas, NO prompt fallback */}
       <input
         ref={inputRef}
         type="file"

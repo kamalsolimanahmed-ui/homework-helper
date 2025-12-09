@@ -55,9 +55,14 @@ async function extractTextFromImage(imageBase64) {
   }
 }
 
-async function generateExplanation(homeworkText) {
+async function generateExplanation(homeworkText, lang = 'en') {
   try {
-    console.log('🤖 Generating funny memorable explanations...');
+    let langName = 'English';
+    if (lang === 'fr') langName = 'French';
+    if (lang === 'de') langName = 'German';
+    if (lang === 'ar') langName = 'Arabic';
+
+    console.log(`🤖 Generating funny explanations in ${langName}...`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -70,7 +75,7 @@ async function generateExplanation(homeworkText) {
         messages: [
           {
             role: 'user',
-            content: `You are a FUNNY, SILLY homework tutor for kids ages 3-10. Make them LAUGH while they learn!
+            content: `You are a FUNNY, SILLY homework tutor for kids ages 3-10. Make them LAUGH while they learn! Answer ONLY in ${langName}.
 
 Homework to help with:
 "${homeworkText}"
@@ -83,17 +88,12 @@ Format EXACTLY like this with EACH answer on its OWN LINE:
 3. [Problem] = [Answer] 😆 [FUNNY ANALOGY]
 (Keep going for EVERY problem)
 
-Examples of FUNNY tricks:
-- "147 + 65 = 212! It's like 147 pizza slices + 65 more = SO MUCH PIZZA YOU'LL EXPLODE! 🍕💥"
-- "249 + 54 = 303! Like 249 penguins + 54 more = A PENGUIN ARMY MARCHING! 🐧🐧🐧"
-- "480 + 96 = 576! It's 480 bananas + 96 more = ENOUGH TO SLIP ON FOREVER! 🍌😂"
-
-Return ONLY this JSON (no markdown, no backticks):
+Return ONLY this JSON in ${langName} (no markdown, no backticks, no extra text):
 {
-  "simple_answer": "Here's your homework solved with FUNNY tricks to remember! 😂",
+  "simple_answer": "Here's your homework solved with FUNNY tricks to remember!",
   "explanation_for_kid": "FUNNY ANSWERS:\\n(Format with EACH answer on its own line with FUNNY emojis and jokes)",
-  "detailed_steps": "1. Look at the funny joke for each problem\\n2. The joke will STICK IN YOUR BRAIN\\n3. You'll NEVER forget the answer!\\n4. Now YOU tell your friends the funny joke!",
-  "fun_tip": "Share these FUNNY tricks with your friends! Whoever laughs the hardest remembers best! 🎉"
+  "detailed_steps": "1. Look at each problem one at a time\\n2. Add or subtract the numbers\\n3. Write the answer under the line\\n4. Do this for EVERY problem on the sheet!",
+  "fun_tip": "Share these FUNNY tricks with your friends! Whoever laughs the hardest remembers best!"
 }`,
           },
         ],
@@ -120,7 +120,7 @@ Return ONLY this JSON (no markdown, no backticks):
         simple_answer: 'Here are all the answers with FUNNY jokes!',
         explanation_for_kid: responseText,
         detailed_steps: '1. Read the funny joke\n2. Remember the answer\n3. Tell your friends!\n4. LAUGH together!',
-        fun_tip: 'The sillier the joke, the better you remember! 🎉',
+        fun_tip: 'The sillier the joke, the better you remember!',
       };
     }
 
@@ -136,6 +136,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const lang = req.headers['x-lang'] || 'en';
 
   try {
     const bb = busboy({ headers: req.headers });
@@ -190,9 +192,9 @@ export default async function handler(req, res) {
 
           console.log('📝 Extracted text:', extractedText.substring(0, 100) + '...');
 
-          const explanation = await generateExplanation(extractedText);
+          const explanation = await generateExplanation(extractedText, lang);
 
-          console.log('✅ Success! Sending homework help with FUNNY tricks...');
+          console.log('✅ Success! Sending homework help...');
           return res.status(200).json({
             success: true,
             extracted_text: extractedText,
