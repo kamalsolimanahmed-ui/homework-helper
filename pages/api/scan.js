@@ -60,6 +60,7 @@ async function generateExplanation(homeworkText, lang = 'en') {
     let langName = 'English';
     if (lang === 'fr') langName = 'French';
     if (lang === 'de') langName = 'German';
+    if (lang === 'es') langName = 'Spanish';
     if (lang === 'ar') langName = 'Arabic';
 
     console.log(`🤖 Generating funny explanations in ${langName}...`);
