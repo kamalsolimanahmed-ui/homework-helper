@@ -7,14 +7,14 @@ export default function ScanButton() {
   const router = useRouter();
 
   function openCamera() {
-    // Tap the hidden input → opens native camera app
+    // Click hidden input → opens native camera app
     inputRef.current.click();
   }
 
   async function handleImageCapture(e) {
     const file = e.target.files[0];
 
-    // Validate file exists and is an image
+    // File validation
     if (!file) {
       console.log("❌ No file selected");
       return;
@@ -31,16 +31,16 @@ export default function ScanButton() {
     setLoading(true);
 
     try {
-      // Create FormData with the real image file
+      // Create FormData with REAL image file
       const formData = new FormData();
       formData.append("file", file);
 
       console.log("📤 Uploading to /api/scan...");
 
-      // POST to backend with the actual image
+      // Send to backend - NO manual Content-Type header!
       const res = await fetch("/api/scan", {
         method: "POST",
-        body: formData, // FormData, not JSON
+        body: formData, // Let browser set Content-Type automatically
       });
 
       const data = await res.json();
@@ -48,23 +48,23 @@ export default function ScanButton() {
       console.log("📥 API Response:", data);
 
       if (!res.ok) {
+        console.error("❌ API Error:", data);
         alert("Error: " + (data.error || "Failed to process image"));
         setLoading(false);
         return;
       }
 
       if (!data.success) {
+        console.error("❌ API returned failure:", data);
         alert("Error: " + data.error);
         setLoading(false);
         return;
       }
 
-      console.log("✅ Success! Storing result and redirecting...");
+      console.log("✅ Success! Redirecting to results...");
 
-      // Store result in localStorage
+      // Store and redirect
       localStorage.setItem("homeworkResult", JSON.stringify(data));
-
-      // Redirect to results page
       router.push("/results");
     } catch (error) {
       console.error("❌ Upload error:", error);
@@ -98,15 +98,7 @@ export default function ScanButton() {
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
 
-      {/* 
-        Native file input with camera capture
-        - Opens system camera app (NOT browser preview)
-        - Returns real image file (NOT empty data)
-        - Works 100% on Samsung Chrome
-        - No getUserMedia(), no canvas, no memory issues
-        - capture="environment" = back camera (homework photos)
-        - capture="user" = front camera (selfies)
-      */}
+      {/* Native camera input - NO getUserMedia, NO canvas, NO prompt fallback */}
       <input
         ref={inputRef}
         type="file"
