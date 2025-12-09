@@ -1,8 +1,23 @@
+import formidable from "formidable";
+import fs from "fs";
+
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
+
+async function parseForm(req) {
+  return new Promise((resolve, reject) => {
+    const form = formidable({
+      multiples: false,
+      keepExtensions: false,
+    });
+
+    form.parse(req, (err, fields, files) => {
+      if (err) reject(err);
+      else resolve({ fields, files });
+    });
+  });
+}
 
 async function extractText(base64) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -63,13 +78,14 @@ Explain this: ${text}`,
 
 export default async function handler(req, res) {
   try {
-    const form = await req.formData();        // <— THIS replaces Busboy & Formidable
-    const file = form.get("file");
+    const { files } = await parseForm(req);
 
-    if (!file) return res.status(400).json({ error: "No file uploaded" });
+    const uploaded = files.file;
+    if (!uploaded) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = await fs.promises.readFile(uploaded.filepath);
     const base64 = buffer.toString("base64");
 
     const text = await extractText(base64);
@@ -77,7 +93,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, ...result });
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error("❌ API error:", err);
     return res.status(500).json({ error: err.message });
   }
 }
