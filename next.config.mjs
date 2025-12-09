@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   reactStrictMode: true,
+
+  // NEW correct key for Next.js 16
+  serverExternalPackages: ["busboy"],
 };
 
 export default nextConfig;
