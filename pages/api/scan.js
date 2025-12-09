@@ -24,7 +24,7 @@ async function extractTextFromImage(imageBase64) {
             content: [
               {
                 type: 'text',
-               text: 'Extract EVERY SINGLE text, equation, problem, and number visible in this image. Return ABSOLUTELY ALL text, nothing missed.',
+                text: 'Extract EVERY SINGLE text, number, and equation from this image. Return ONLY the exact text you see, nothing else. Get EVERYTHING.',
               },
               {
                 type: 'image_url',
@@ -57,7 +57,7 @@ async function extractTextFromImage(imageBase64) {
 
 async function generateExplanation(homeworkText) {
   try {
-    console.log('🤖 Generating kid-friendly explanation...');
+    console.log('🤖 Generating solutions for ALL equations...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -70,20 +70,22 @@ async function generateExplanation(homeworkText) {
         messages: [
           {
             role: 'user',
-            content: `You are a friendly homework tutor for kids ages 3-10. Explain EACH and EVERY homework problem/equation in VERY SIMPLE words.
+            content: `You are a friendly homework tutor for kids ages 3-10. SOLVE EVERY SINGLE EQUATION on this homework sheet.
 
-Homework (may have multiple problems): "${homeworkText}"
+Homework: "${homeworkText}"
+
+SOLVE ALL equations and show answers for each one.
 
 Return ONLY this JSON (no markdown, no backticks):
 {
-  "simple_answer": "ONE short sentence a 3yo can understand",
-  "explanation_for_kid": "2-3 short sentences with a simple example. Add emojis!",
-  "detailed_steps": "1. Simple step\\n2. Next step\\n3. Last step",
-  "fun_tip": "One funny way to remember this!"
+  "simple_answer": "Here are ALL the answers to your homework! Solve every problem on your sheet! 📝",
+  "explanation_for_kid": "Here are all the answers:\\n1. First equation = answer\\n2. Second equation = answer\\n3. Third = answer\\n(list ALL answers for every single equation you see)",
+  "detailed_steps": "1. Look at each problem one at a time\\n2. Add or subtract the numbers\\n3. Write the answer under the line\\n4. Do this for EVERY problem on the sheet!",
+  "fun_tip": "Check your work! Add your answer + the second number = first number (for addition). That's how you know it's right!"
 }`,
           },
         ],
-        max_tokens: 300,
+        max_tokens: 1500,
         temperature: 0.7,
       }),
     });
@@ -103,14 +105,14 @@ Return ONLY this JSON (no markdown, no backticks):
     } catch (e) {
       console.warn('JSON parse error, using fallback');
       explanation = {
-        simple_answer: 'Great question!',
+        simple_answer: 'Here are all the answers!',
         explanation_for_kid: responseText,
-        detailed_steps: '1. Read it\n2. Think\n3. Learn!',
-        fun_tip: 'Keep practicing! 🌟',
+        detailed_steps: '1. Look at each problem\n2. Do the math\n3. Write the answer!',
+        fun_tip: 'Check your work by doing it backwards!',
       };
     }
 
-    console.log('✅ Explanation generated');
+    console.log('✅ All solutions generated');
     return explanation;
   } catch (error) {
     console.error('❌ Explanation error:', error);
@@ -178,7 +180,7 @@ export default async function handler(req, res) {
 
           const explanation = await generateExplanation(extractedText);
 
-          console.log('✅ Success! Sending results...');
+          console.log('✅ Success! Sending all solutions...');
           return res.status(200).json({
             success: true,
             extracted_text: extractedText,
