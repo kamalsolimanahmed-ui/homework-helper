@@ -59,13 +59,13 @@ export default async function handler(req, res) {
     console.log(`✅ Found ${searchData.items.length} videos in search results`);
 
     // ============================================
-    // STEP 2: Get Video Details (Duration, Stats)
+    // STEP 2: Get Video Details (Duration, Stats, Status)
     // ============================================
     console.log(`\n📊 STEP 2: FETCH DETAILS`);
     const videoIds = searchData.items.map(item => item.id.videoId).join(',');
 
     const detailsUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
-    detailsUrl.searchParams.append('part', 'contentDetails,statistics');
+    detailsUrl.searchParams.append('part', 'contentDetails,statistics,status');
     detailsUrl.searchParams.append('id', videoIds);
     detailsUrl.searchParams.append('key', youtubeApiKey);
 
@@ -85,15 +85,58 @@ export default async function handler(req, res) {
         viewCount: parseInt(item.statistics.viewCount || '0'),
         likeCount: parseInt(item.statistics.likeCount || '0'),
         commentCount: parseInt(item.statistics.commentCount || '0'),
+        embeddable: item.status.embeddable,
+        licensedContent: item.contentDetails.licensedContent,
+        regionRestriction: item.contentDetails.regionRestriction,
       };
     });
 
     console.log(`✅ Retrieved details for ${Object.keys(detailsMap).length} videos`);
 
     // ============================================
-    // STEP 3: Filter & Score Videos
+    // STEP 3: Filter by Embeddable Status (CRITICAL)
     // ============================================
-    console.log(`\n🎯 STEP 3: FILTER & SCORE`);
+    console.log(`\n🔒 STEP 3: EMBEDDABLE STATUS CHECK`);
+    let embeddableCount = 0;
+
+    const embeddableVideoIds = Object.keys(detailsMap).filter(videoId => {
+      const details = detailsMap[videoId];
+
+      // ========== FILTER: Must be embeddable ==========
+      if (details.embeddable !== true) {
+        console.log(`  ❌ Video ${videoId} - NOT EMBEDDABLE (blocked)`);
+        return false;
+      }
+
+      // ========== FILTER: Must NOT have region restrictions ==========
+      if (details.regionRestriction) {
+        console.log(`  ❌ Video ${videoId} - REGION RESTRICTED`);
+        return false;
+      }
+
+      // ========== FILTER: Must NOT be licensed content only ==========
+      if (details.licensedContent === true) {
+        console.log(`  ❌ Video ${videoId} - LICENSED CONTENT ONLY (can't embed)`);
+        return false;
+      }
+
+      embeddableCount++;
+      console.log(`  ✅ Video ${videoId} - EMBEDDABLE & SAFE`);
+      return true;
+    });
+
+    console.log(`✅ ${embeddableCount} videos are embeddable`);
+
+    // If no embeddable videos, return fallback immediately
+    if (embeddableCount === 0) {
+      console.log('⚠️ No embeddable videos found, returning fallback');
+      return returnFallback(res, 'NO_EMBEDDABLE_VIDEOS');
+    }
+
+    // ============================================
+    // STEP 4: Filter & Score Videos
+    // ============================================
+    console.log(`\n🎯 STEP 4: FILTER & SCORE`);
 
     const animationKeywords = [
       'animated',
@@ -118,18 +161,19 @@ export default async function handler(req, res) {
     for (let i = 0; i < searchData.items.length; i++) {
       const item = searchData.items[i];
       const videoId = item.id.videoId;
-      const details = detailsMap[videoId];
 
-      if (!details) {
+      // Skip if not embeddable (already filtered above)
+      if (!embeddableVideoIds.includes(videoId)) {
         rejectedCount++;
         continue;
       }
+
+      const details = detailsMap[videoId];
 
       // Parse duration
       const durationSeconds = parseDuration(details.duration);
 
       // ========== FILTER 1: Duration ==========
-      // Reject if < 25 seconds OR > 10 minutes (600 seconds)
       if (durationSeconds < 25 || durationSeconds > 600) {
         rejectedCount++;
         console.log(
@@ -139,7 +183,6 @@ export default async function handler(req, res) {
       }
 
       // ========== FILTER 2: Animation Keywords ==========
-      // Must contain animation keywords in title or description
       const title = item.snippet.title.toLowerCase();
       const description = item.snippet.description.toLowerCase();
       const channelTitle = item.snippet.channelTitle;
@@ -157,7 +200,6 @@ export default async function handler(req, res) {
       }
 
       // ========== FILTER 3: Low Quality Channels ==========
-      // Reject channels with very low engagement (optional, soft filter)
       const engagementScore = details.likeCount + details.commentCount;
       if (engagementScore === 0 && details.viewCount < 10000) {
         rejectedCount++;
@@ -168,7 +210,6 @@ export default async function handler(req, res) {
       }
 
       // ========== VIDEO PASSED ALL FILTERS ==========
-      // Now score it
       const score = scoreVideo(item, details, trustedChannels);
 
       scoredVideos.push({
@@ -194,9 +235,9 @@ export default async function handler(req, res) {
     );
 
     // ============================================
-    // STEP 4: Select Best Video or Return Fallback
+    // STEP 5: Select Best Video or Return Fallback
     // ============================================
-    console.log(`\n🏆 STEP 4: SELECT BEST VIDEO`);
+    console.log(`\n🏆 STEP 5: SELECT BEST VIDEO`);
 
     if (scoredVideos.length === 0) {
       console.log('⚠️ No valid educational videos found, returning fallback');
@@ -213,6 +254,7 @@ export default async function handler(req, res) {
     console.log(`   Score: ${bestVideo.score}`);
     console.log(`   Duration: ${bestVideo.duration}s`);
     console.log(`   Views: ${bestVideo.viewCount.toLocaleString()}`);
+    console.log(`   Embeddable: ✅ YES`);
     console.log(`\n${'='.repeat(70)}\n`);
 
     return res.status(200).json({
@@ -333,20 +375,23 @@ function scoreVideo(item, details, trustedChannels) {
 
 /**
  * Return Fallback Educational Video
+ * This video is ALWAYS embeddable and safe
  * Used when:
  * - YouTube API fails
  * - No videos found
  * - No valid educational videos after filtering
+ * - No embeddable videos available
  */
 function returnFallback(res, reason) {
   console.log(`\n🎬 RETURNING FALLBACK VIDEO`);
   console.log(`   Reason: ${reason}`);
+  console.log(`   Note: This video is ALWAYS embeddable ✅`);
   console.log(`${'='.repeat(70)}\n`);
 
   return res.status(200).json({
     success: true,
-    title: 'Learn Math Fast (Kids Version)',
-    videoId: 'B3qWZ-HFZ0Y',
+    title: 'Addition Song for Kids (Safe Version)',
+    videoId: '5Xw5rrPS8Uo',
     thumbnail: 'fallback',
     score: 0,
   });
