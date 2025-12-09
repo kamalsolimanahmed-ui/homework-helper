@@ -34,14 +34,6 @@ export default function Home() {
     setLang(newLang);
   }
 
-  const langLabels = {
-    en: "🇺🇸 English (USA)",
-    es: "🇪🇸 Español",
-    fr: "🇫🇷 Français",
-    de: "🇩🇪 Deutsch",
-    ar: "🇸🇦 العربية",
-  };
-
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex flex-col items-center justify-center p-4">
       {/* Language Selector - Top Right */}
@@ -66,27 +58,24 @@ export default function Home() {
       <div className="w-full max-w-2xl flex flex-col items-center">
         {/* Hero Section with Characters and Icons */}
         <div className="relative w-full h-96 flex items-center justify-center mb-8">
-          {/* Background with hero images (using placeholder styling) */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {/* This is where your Canva hero image would go */}
-            <div className="text-center">
-              <div className="text-6xl mb-4">⚡</div>
-              <h1 className="text-6xl font-black text-yellow-400 drop-shadow-lg mb-3">
-                HOMEWORK
-              </h1>
-              <h2 className="text-5xl font-black text-yellow-400 drop-shadow-lg mb-4">
-                HELPER AI
-              </h2>
-              <p className="text-xl text-white font-semibold drop-shadow-md">
-                Smart help for kids + parents
-              </p>
-            </div>
+          {/* This is where your Canva hero image would go */}
+          <div className="text-center">
+            <div className="text-6xl mb-4">⚡</div>
+            <h1 className="text-6xl font-black text-yellow-400 drop-shadow-lg mb-3">
+              HOMEWORK
+            </h1>
+            <h2 className="text-5xl font-black text-yellow-400 drop-shadow-lg mb-4">
+              HELPER AI
+            </h2>
+            <p className="text-xl text-white font-semibold drop-shadow-md">
+              Smart help for kids + parents
+            </p>
           </div>
         </div>
 
         {/* Mode Selection */}
         <div className="mb-8 w-full">
-          <p className="text-white text-center text-lg font-bold mb-4">
+          <p className="text-white text-center text-lg font-bold mb-6">
             Who's doing homework?
           </p>
 
@@ -95,8 +84,9 @@ export default function Home() {
             <button
               onClick={handleKidMode}
               className={`
-                py-4 px-6 rounded-2xl font-bold text-base
+                py-6 px-8 rounded-3xl font-bold text-xl
                 transition-all duration-300 transform
+                flex flex-col items-center gap-3
                 ${
                   parentMode === false
                     ? "bg-green-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
@@ -104,7 +94,11 @@ export default function Home() {
                 }
               `}
             >
-              <span className="text-2xl mb-1 block">👧</span>
+              <img
+                src="/kid.png"
+                alt="Kid Mode"
+                className="w-20 h-20 object-contain"
+              />
               <span className="text-white">Kid Mode</span>
             </button>
 
@@ -112,8 +106,9 @@ export default function Home() {
             <button
               onClick={handleParentMode}
               className={`
-                py-4 px-6 rounded-2xl font-bold text-base
+                py-6 px-8 rounded-3xl font-bold text-xl
                 transition-all duration-300 transform
+                flex flex-col items-center gap-3
                 ${
                   parentMode === true
                     ? "bg-blue-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
@@ -121,7 +116,11 @@ export default function Home() {
                 }
               `}
             >
-              <span className="text-2xl mb-1 block">👨‍💼</span>
+              <img
+                src="/parent.png"
+                alt="Parent Mode"
+                className="w-20 h-20 object-contain"
+              />
               <span className="text-white">Parent Mode</span>
             </button>
           </div>
