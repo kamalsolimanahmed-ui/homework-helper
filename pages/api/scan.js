@@ -8,7 +8,7 @@ export const config = {
 
 async function extractTextFromImage(imageBase64) {
   try {
-    console.log('📸 Sending image to OpenAI Vision API...');
+    console.log('📸 Sending image to OpenAI Vision API for text extraction...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -24,7 +24,7 @@ async function extractTextFromImage(imageBase64) {
             content: [
               {
                 type: 'text',
-                text: 'Extract EVERY SINGLE text, number, word, question, and detail from this image. Return ONLY the exact content you see, nothing else. Get EVERYTHING.',
+                text: 'Extract EVERY SINGLE text, number, equation, word, and detail from this image. Return ONLY the exact content. Include ALL problems/equations you see.',
               },
               {
                 type: 'image_url',
@@ -35,7 +35,7 @@ async function extractTextFromImage(imageBase64) {
             ],
           },
         ],
-        max_tokens: 1500,
+        max_tokens: 2000,
       }),
     });
 
@@ -48,6 +48,7 @@ async function extractTextFromImage(imageBase64) {
 
     const extractedText = data.choices[0].message.content;
     console.log('✅ Text extracted from image');
+    console.log(`📝 Extracted length: ${extractedText.length} characters`);
     return extractedText;
   } catch (error) {
     console.error('❌ OCR Error:', error);
@@ -64,91 +65,73 @@ async function generateExplanation(homeworkText, lang = 'en', parent = false) {
     if (lang === 'ar') langName = 'Arabic';
 
     const mode = parent ? 'PARENT' : 'KID';
-    console.log(`🤖 Generating ${mode} explanation in ${langName}...`);
+    console.log(`🤖 Generating ${mode} explanation for ALL PROBLEMS in ${langName}...`);
 
     let prompt = '';
 
     if (parent) {
-      // ULTRA-DETAILED PARENT PROMPT
-      prompt = `You are a world-class educator helping PARENTS understand their child's homework.
+      prompt = `You are a professional educator helping PARENTS understand their child's homework.
 
-HOMEWORK CONTENT TO EXPLAIN:
+HOMEWORK SHEET WITH MULTIPLE PROBLEMS:
 """
 ${homeworkText}
 """
 
 RESPOND ONLY IN: ${langName}
 
-YOU MUST:
-1. Identify each problem clearly
-2. Solve it step-by-step (show ALL work)
-3. Explain WHY the method works
-4. Show what the child should learn
-5. Identify the TOPIC (addition, subtraction, multiplication, division, fractions, decimals, algebra, geometry, word-problem, reading, grammar, science, or unknown)
+CRITICAL: You must solve ALL problems on this sheet. Not just one!
 
-EXAMPLE - If problem is 147 + 65:
+For EACH problem:
+1. State the problem clearly
+2. Show step-by-step solution
+3. Show the answer
+4. Explain why the method works
 
-Step 1: Line up by place value
-Step 2: Add ones: 7 + 5 = 12 (write 2, carry 1)
-Step 3: Add tens: 4 + 6 + 1 = 11 (write 1, carry 1)
-Step 4: Add hundreds: 1 + 1 = 2
-Answer: 212
+Then at the end:
+5. Identify the main TOPIC (addition, subtraction, multiplication, division, fractions, decimals, algebra, geometry, word-problem, reading, grammar, science, or unknown)
 
-WHY THIS WORKS: Place value groups numbers into ones, tens, hundreds, etc. When a column exceeds 9, we "carry" to the next column.
-
-RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
+FORMAT - Return ONLY valid JSON (no markdown):
 {
-  "simple_answer": "212",
-  "explanation": "Place value addition works by aligning digits and adding column by column. For 147 + 65: ones (7+5=12), tens (4+6+1=11), hundreds (1+1=2), giving 212. This method works because it systematically combines quantities by magnitude. Help your child understand that carrying happens when a column sum exceeds 9.",
-  "detailed_steps": "1. Write numbers vertically, aligning by place value\\n2. Add ones column: 7 + 5 = 12 (write 2 below, carry 1)\\n3. Add tens column: 1 + 4 + 6 = 11 (write 1 below, carry 1)\\n4. Add hundreds column: 1 + 1 = 2\\n5. Read the complete answer: 212",
-  "fun_tip": "Use real objects (coins, blocks) to show place value visually.",
+  "simple_answer": "List ALL answers separated by \\n. Example: 1) 212\\n2) 18\\n3) 56",
+  "explanation": "Solve problem 1... [show work]\\n\\nSolve problem 2... [show work]\\n\\nSolve problem 3... [show work]\\nEtc. for ALL problems.",
+  "detailed_steps": "Problem 1:\\n1. Step 1\\n2. Step 2\\n\\nProblem 2:\\n1. Step 1\\n2. Step 2\\nEtc.",
+  "fun_tip": "Teaching tip for helping with this type of problem",
   "topic": "addition"
 }`;
     } else {
-      // ULTRA-DETAILED KID PROMPT
-      prompt = `You are the BEST teacher for kids ages 7-10. Your job is to make them feel SMART and CONFIDENT!
+      prompt = `You are the BEST teacher for kids ages 7-10!
 
-HOMEWORK TO SOLVE:
+HOMEWORK SHEET WITH MULTIPLE PROBLEMS:
 """
 ${homeworkText}
 """
 
 RESPOND ONLY IN: ${langName}
 
-VERY IMPORTANT RULES:
-✓ Use SHORT simple sentences (8-12 words MAX per sentence)
-✓ Use words they understand (no big words!)
-✓ SHOW HOW TO DO IT step by step
-✓ Be encouraging and positive
-✓ Use EXACTLY ONE emoji at the end (not more!)
-✓ Explain WHAT and WHY
-✓ Make them feel proud
+CRITICAL RULE: Solve EVERY problem on the sheet! Not just one!
 
-EXAMPLE - If problem is 15 - 3:
+For EACH problem, show:
+1. What the problem is
+2. How to solve it (simple steps)
+3. The answer
+4. Encouraging message
 
-Subtraction means take away!
-You have 15, and you take away 3.
-Now you have 12 left.
-You did it! Great job! 🌟
+Keep explanations SHORT and SIMPLE.
+Use words kids understand.
 
-ANOTHER EXAMPLE - If 147 + 65:
+Then identify the TOPIC at the end.
 
-Adding means putting groups together.
-147 plus 65 means have 147, then get 65 more.
-We add ones (7+5=12), tens (4+6=10, plus 1=11), hundreds (1+1=2).
-That's 212! You're awesome! ✨
-
-RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
+FORMAT - Return ONLY valid JSON (no markdown):
 {
-  "simple_answer": "212",
-  "explanation": "When we add, we put numbers together! 147 + 65 means we have 147 and get 65 more. Ones: 7 + 5 = 12. Tens: 4 + 6 = 10, plus the 1 we carried = 11. Hundreds: 1 + 1 = 2. Answer: 212! You're a math superstar! 🌟",
-  "detailed_steps": "1. Write the numbers one on top of the other\\n2. Add the ones (right): 7 + 5 = 12\\n3. Write 2, carry the 1\\n4. Add the tens: 1 + 4 + 6 = 11\\n5. Write 1, carry the 1\\n6. Add the hundreds: 1 + 1 = 2\\n7. Read your answer: 212",
-  "fun_tip": "You're doing amazing! Every problem you solve makes you stronger!",
+  "simple_answer": "List all answers. Example: 1) 212\\n2) 18\\n3) 56\\n4) 100",
+  "explanation": "Problem 1: [kid-friendly explanation with answer]\\n\\nProblem 2: [explanation]\\n\\nProblem 3: [explanation]\\nEtc. for ALL problems. Make them feel proud!",
+  "detailed_steps": "Problem 1:\\n1. Simple step\\n2. Simple step\\n\\nProblem 2:\\n1. Step\\n2. Step\\nEtc.",
+  "fun_tip": "You solved ALL the problems! That's awesome!",
   "topic": "addition"
 }`;
     }
 
-    console.log('📝 Calling OpenAI with ULTRA-DETAILED prompt...');
+    console.log('📝 Calling OpenAI to solve ALL problems...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -164,8 +147,8 @@ RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
             content: prompt,
           },
         ],
-        max_tokens: 2500,
-        temperature: 0.3, // Lower = more consistent, focused
+        max_tokens: 3500,
+        temperature: 0.3,
       }),
     });
 
@@ -192,7 +175,7 @@ RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
           explanation = JSON.parse(jsonMatch[0]);
           console.log('✅ Extracted and parsed JSON');
         } catch (e2) {
-          console.error('❌ Cannot parse JSON:', responseText.substring(0, 200));
+          console.error('❌ Cannot parse JSON');
           throw new Error('Could not parse API response as JSON');
         }
       } else {
@@ -200,37 +183,29 @@ RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
       }
     }
 
-    // VALIDATE RESPONSE QUALITY
-    if (!explanation.simple_answer) {
-      throw new Error('Missing: simple_answer');
-    }
-
-    if (!explanation.explanation) {
-      throw new Error('Missing: explanation');
-    }
+    // Validate response
+    if (!explanation.simple_answer) throw new Error('Missing: simple_answer');
+    if (!explanation.explanation) throw new Error('Missing: explanation');
 
     const explanationLength = explanation.explanation.length;
     console.log(`📊 Explanation length: ${explanationLength} characters`);
 
-    // ENFORCE MINIMUM QUALITY
-    if (explanationLength < 80) {
-      console.error(`❌ Explanation too short (${explanationLength}), requiring detailed response`);
+    if (explanationLength < 100) {
+      console.error(`❌ Explanation too short (${explanationLength})`);
       throw new Error('Explanation too generic, requesting detailed response');
     }
 
     if (!explanation.detailed_steps) {
-      console.warn('⚠️ Missing detailed_steps, using explanation');
       explanation.detailed_steps = explanation.explanation;
     }
 
     if (!explanation.fun_tip) {
-      console.warn('⚠️ Missing fun_tip');
       explanation.fun_tip = parent 
-        ? 'Help your child practice this concept regularly.'
-        : 'You are doing great! Keep practicing!';
+        ? 'Help your child review all solutions.'
+        : 'You solved all the problems! Amazing work!';
     }
 
-    // VALIDATE TOPIC
+    // Validate topic
     const validTopics = [
       'addition',
       'subtraction',
@@ -252,11 +227,11 @@ RETURN ONLY VALID JSON (no markdown, no backticks, NO extra text):
       explanation.topic = 'unknown';
     }
 
-    console.log('✅ Explanation validated and complete');
+    console.log('✅ All problems solved successfully!');
     console.log(`📚 Topic: ${explanation.topic}`);
     return explanation;
   } catch (error) {
-    console.error('❌ Explanation generation error:', error);
+    console.error('❌ Error generating explanations:', error);
     throw error;
   }
 }
@@ -269,10 +244,10 @@ export default async function handler(req, res) {
   const lang = req.headers['x-lang'] || 'en';
   const parent = req.headers['x-parent'] === 'true';
 
-  console.log(`\n${'='.repeat(60)}`);
+  console.log(`\n${'='.repeat(70)}`);
   console.log(`🔍 NEW REQUEST - ${new Date().toLocaleTimeString()}`);
   console.log(`📋 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
-  console.log(`${'='.repeat(60)}`);
+  console.log(`${'='.repeat(70)}`);
 
   try {
     const bb = busboy({ headers: req.headers });
@@ -320,12 +295,13 @@ export default async function handler(req, res) {
           }
 
           console.log(`📄 Text extracted: ${extractedText.length} characters`);
+          console.log(`📋 Preview: ${extractedText.substring(0, 100)}...`);
 
-          // GENERATE EXPLANATION
+          // GENERATE EXPLANATION FOR ALL PROBLEMS
           const explanation = await generateExplanation(extractedText, lang, parent);
 
-          console.log(`\n✅ SUCCESS! Sending response...`);
-          console.log(`${'='.repeat(60)}\n`);
+          console.log(`\n✅ SUCCESS! Sending response with ALL solutions...`);
+          console.log(`${'='.repeat(70)}\n`);
 
           return res.status(200).json({
             success: true,
@@ -339,7 +315,7 @@ export default async function handler(req, res) {
           });
         } catch (error) {
           console.error(`❌ ERROR: ${error.message}`);
-          console.log(`${'='.repeat(60)}\n`);
+          console.log(`${'='.repeat(70)}\n`);
           
           return res.status(500).json({
             error: error.message || 'Failed to process homework',
