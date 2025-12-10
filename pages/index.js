@@ -60,32 +60,32 @@ export default function Home() {
     /* ---------- DESKTOP (>1100px) ---------- */
     @media (min-width: 1101px) {
       .hero-section {
-        height: 380px;
-        padding-top: 109px;
+        height: 540px;
+        padding-top: 60px;
       }
     }
 
     /* ---------- TABLET (700px - 1100px) ---------- */
     @media (min-width: 700px) and (max-width: 1100px) {
       .hero-section {
-        height: 340px;
-        padding-top: 80px;
+        height: 420px;
+        padding-top: 50px;
       }
     }
 
     /* ---------- PHONE (≤700px) ---------- */
     @media (max-width: 700px) {
       .hero-section {
-        height: 280px;
-        padding-top: 50px;
+        height: 300px;
+        padding-top: 30px;
       }
     }
 
     /* ---------- SMALL PHONE (≤420px) ---------- */
     @media (max-width: 420px) {
       .hero-section {
-        height: 220px;
-        padding-top: 30px;
+        height: 240px;
+        padding-top: 20px;
       }
     }
 
@@ -120,31 +120,8 @@ export default function Home() {
 
     .scan-btn-wrapper {
       display: inline-block;
-      margin-top: 20px;
-      margin-bottom: 60px;
-    }
-
-    /* Style ScanButton - Make it BIGGER and PROFESSIONAL */
-    .scan-btn-wrapper button,
-    .scan-btn-wrapper div button {
-      display: inline-block;
-      padding: 20px 50px !important;
-      background-color: #FFD000 !important;
-      color: black !important;
-      border-radius: 45px !important;
-      font-size: 28px !important;
-      font-weight: bold !important;
-      cursor: pointer;
-      transition: 0.2s;
-      border: none !important;
-      text-decoration: none;
-      font-family: Arial, sans-serif !important;
-    }
-
-    .scan-btn-wrapper button:hover,
-    .scan-btn-wrapper div button:hover {
-      background-color: #ffbb00 !important;
-      transform: scale(1.05);
+      margin-top: 10px;
+      margin-bottom: 40px;
     }
 
     h2 {
@@ -172,6 +149,29 @@ export default function Home() {
       cursor: pointer;
       font-size: 14px;
       font-family: Arial, sans-serif;
+    }
+
+    /* Style ScanButton - Make it BIGGER and PROFESSIONAL */
+    .scan-btn-wrapper button,
+    .scan-btn-wrapper div button {
+      display: inline-block;
+      padding: 20px 50px !important;
+      background-color: #FFD000 !important;
+      color: black !important;
+      border-radius: 45px !important;
+      font-size: 28px !important;
+      font-weight: bold !important;
+      cursor: pointer;
+      transition: 0.2s;
+      border: none !important;
+      text-decoration: none;
+      font-family: Arial, sans-serif !important;
+    }
+
+    .scan-btn-wrapper button:hover,
+    .scan-btn-wrapper div button:hover {
+      background-color: #ffbb00 !important;
+      transform: scale(1.05);
     }
 
     /* ---------- RESPONSIVE ADJUSTMENTS FOR BUTTONS ---------- */
@@ -205,7 +205,7 @@ export default function Home() {
       }
 
       .scan-btn-wrapper {
-        margin-top: 25px;
+        margin-top: 60px;
         margin-bottom: 40px;
       }
     }
@@ -229,7 +229,7 @@ export default function Home() {
       }
 
       .scan-btn-wrapper {
-        margin-top: 20px;
+        margin-top: 50px;
         margin-bottom: 30px;
       }
     }
@@ -313,7 +313,7 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Scan Button Wrapper - BIGGER & MORE PROFESSIONAL */}
+        {/* Scan Button Wrapper - BIGGER & MORE PROFESSIONAL - NOW WITH MORE SPACE */}
         <div className="scan-btn-wrapper">
           <ScanButton />
         </div>
