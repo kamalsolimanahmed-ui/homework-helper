@@ -39,7 +39,6 @@ export default async function handler(req, res) {
     searchUrl.searchParams.append('key', youtubeApiKey);
     searchUrl.searchParams.append('maxResults', '50');
     searchUrl.searchParams.append('order', 'relevance');
-    searchUrl.searchParams.append('videoDuration', 'medium,short');
     searchUrl.searchParams.append('regionCode', 'US');
     searchUrl.searchParams.append('relevanceLanguage', 'en');
 
@@ -287,29 +286,6 @@ function parseDuration(duration) {
 
 /**
  * Score Video Based on Multiple Criteria
- *
- * Scoring breakdown:
- * a) Animation Keywords:
- *    +50 if title contains "animated"
- *    +40 if title contains "cartoon"
- *    +30 if description contains animation keywords
- *
- * b) Learning Intent:
- *    +25 if title includes "learn"
- *    +15 if title includes "kids"
- *
- * c) Trusted Educational Channels:
- *    +120 Numberblocks
- *    +100 Khan Academy Kids
- *    +80 Scratch Garden
- *    +80 Jack Hartmann
- *    +60 Pinkfong Learning
- *    +50 FunKidsLearning
- *
- * d) View Count Boost:
- *    +50 if views > 1,000,000
- *    +30 if views > 500,000
- *    +15 if views > 100,000
  */
 function scoreVideo(item, details, trustedChannels) {
   let score = 0;
@@ -353,7 +329,7 @@ function scoreVideo(item, details, trustedChannels) {
     if (channelTitle.toLowerCase().includes(channel.toLowerCase())) {
       score += points;
       console.log(`    → +${points} trusted channel: "${channel}"`);
-      break; // Only count one channel bonus
+      break;
     }
   }
 
@@ -375,12 +351,6 @@ function scoreVideo(item, details, trustedChannels) {
 
 /**
  * Return Fallback Educational Video
- * This video is ALWAYS embeddable and safe
- * Used when:
- * - YouTube API fails
- * - No videos found
- * - No valid educational videos after filtering
- * - No embeddable videos available
  */
 function returnFallback(res, reason) {
   console.log(`\n🎬 RETURNING FALLBACK VIDEO`);
@@ -390,8 +360,8 @@ function returnFallback(res, reason) {
 
   return res.status(200).json({
     success: true,
-    title: 'Addition Song for Kids (Safe Version)',
-    videoId: '5Xw5rrPS8Uo',
+    title: 'Khan Academy Kids - Math Basics',
+    videoId: 'crfvqKKMpZM',
     thumbnail: 'fallback',
     score: 0,
   });
