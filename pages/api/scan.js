@@ -205,27 +205,48 @@ FORMAT - Return ONLY valid JSON (no markdown):
         : 'You solved all the problems! Amazing work!';
     }
 
-    // Validate topic
-    const validTopics = [
-      'addition',
-      'subtraction',
-      'multiplication',
-      'division',
-      'fractions',
-      'decimals',
-      'algebra',
-      'geometry',
-      'word-problem',
-      'reading',
-      'grammar',
-      'science',
-      'unknown',
-    ];
+    // ============================================
+    // IMPROVED TOPIC DETECTION
+    // ============================================
+    console.log(`\n📚 TOPIC DETECTION`);
+    let detectedTopic = explanation.topic || 'unknown';
+    console.log(`   Raw topic from AI: "${detectedTopic}"`);
 
-    if (!explanation.topic || !validTopics.includes(explanation.topic)) {
-      console.warn(`⚠️ Invalid topic: ${explanation.topic}, defaulting to unknown`);
-      explanation.topic = 'unknown';
+    // Map common topic variations to valid topics
+    const topicMap = {
+      'addition': ['addition', 'adding', 'add', 'plus'],
+      'subtraction': ['subtraction', 'subtracting', 'subtract', 'minus', 'difference'],
+      'multiplication': ['multiplication', 'multiplying', 'multiply', 'times', 'product'],
+      'division': ['division', 'dividing', 'divide', 'quotient'],
+      'fractions': ['fractions', 'fraction', 'half', 'third', 'quarter'],
+      'decimals': ['decimals', 'decimal', 'point'],
+      'algebra': ['algebra', 'algebraic', 'variable', 'equation'],
+      'geometry': ['geometry', 'geometric', 'shapes', 'angles', 'triangle', 'circle'],
+      'word-problem': ['word problem', 'word-problem', 'story problem', 'story'],
+      'reading': ['reading', 'read', 'comprehension', 'passage'],
+      'grammar': ['grammar', 'grammatical', 'sentence', 'verb', 'noun'],
+      'science': ['science', 'scientific', 'chemistry', 'physics', 'biology'],
+    };
+
+    let finalTopic = 'unknown';
+    const lowerTopic = detectedTopic.toLowerCase();
+
+    // Try to match the detected topic to valid topics
+    for (const [validTopic, keywords] of Object.entries(topicMap)) {
+      if (keywords.some(kw => lowerTopic.includes(kw))) {
+        finalTopic = validTopic;
+        console.log(`   ✅ Matched to: "${finalTopic}" (keyword: "${lowerTopic}")`);
+        break;
+      }
     }
+
+    // If no match, default to unknown
+    if (finalTopic === 'unknown') {
+      console.log(`   ⚠️ No matching topic found, defaulting to: "unknown"`);
+    }
+
+    explanation.topic = finalTopic;
+    console.log(`   📌 FINAL TOPIC: "${finalTopic}"\n`);
 
     console.log('✅ All problems solved successfully!');
     console.log(`📚 Topic: ${explanation.topic}`);
@@ -245,8 +266,8 @@ export default async function handler(req, res) {
   const parent = req.headers['x-parent'] === 'true';
 
   console.log(`\n${'='.repeat(70)}`);
-  console.log(`🔍 NEW REQUEST - ${new Date().toLocaleTimeString()}`);
-  console.log(`📋 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
+  console.log(`📋 NEW REQUEST - ${new Date().toLocaleTimeString()}`);
+  console.log(`🔹 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
   console.log(`${'='.repeat(70)}`);
 
   try {
