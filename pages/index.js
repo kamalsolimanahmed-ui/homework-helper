@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import ScanButton from "../components/ScanButton";
 
 export default function Home() {
   const [parentMode, setParentMode] = useState(false);
   const [lang, setLang] = useState("en");
-  const [imagesLoaded, setImagesLoaded] = useState(false);
 
+  // Load saved mode and language from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem("parentMode");
     const savedLang = localStorage.getItem("lang");
@@ -17,8 +16,6 @@ export default function Home() {
     if (savedLang) {
       setLang(savedLang);
     }
-    
-    setImagesLoaded(true);
   }, []);
 
   function handleKidMode() {
@@ -37,17 +34,193 @@ export default function Home() {
     setLang(newLang);
   }
 
+  const styles = `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      background-color: #04133A;
+      font-family: Arial, sans-serif;
+      color: white;
+      text-align: center;
+      width: 100%;
+    }
+
+    .hero-section {
+      width: 100%;
+      height: 380px;
+      background-image: url("/hero.png");
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      padding-top: 109px;
+    }
+
+    .mode-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-bottom: 40px;
+      padding: 40px 20px 0px 20px;
+      flex-wrap: wrap;
+    }
+
+    .mode-box {
+      width: 200px;
+      padding: 20px;
+      background: white;
+      border-radius: 20px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 20px;
+      color: #04133A;
+      font-weight: bold;
+      transition: 0.2s;
+      border: none;
+      user-select: none;
+      font-family: Arial, sans-serif;
+    }
+
+    .mode-box:hover {
+      transform: scale(1.05);
+    }
+
+    .scan-btn-wrapper {
+      display: inline-block;
+      margin-top: 10px;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 30px;
+      font-size: 28px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .language-selector {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 50;
+    }
+
+    .language-selector select {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: none;
+      background: white;
+      color: #04133A;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      font-family: Arial, sans-serif;
+    }
+
+    /* ---------- MOBILE RESPONSIVE (PHONES) ---------- */
+    @media (max-width: 700px) {
+      .hero-section {
+        height: 260px;
+        background-size: contain;
+        padding-top: 20px;
+      }
+
+      h2 {
+        font-size: 22px;
+        margin-top: 15px;
+      }
+
+      .mode-container {
+        flex-direction: column;
+        gap: 18px;
+        margin-top: 15px;
+      }
+
+      .mode-box {
+        width: 80%;
+        max-width: 340px;
+        font-size: 18px;
+        padding: 16px;
+        border-radius: 18px;
+        margin: 0 auto;
+      }
+
+      .scan-btn {
+        margin-top: 25px;
+        font-size: 22px;
+        padding: 14px 32px;
+        border-radius: 32px;
+      }
+    }
+
+    /* ---------- SMALL PHONES (iPhone SE, older Android) ---------- */
+    @media (max-width: 420px) {
+      .hero-section {
+        height: 200px;
+        padding-top: 10px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      .mode-box {
+        width: 90%;
+        font-size: 16px;
+        padding: 14px;
+      }
+
+      .scan-btn {
+        font-size: 20px;
+        padding: 12px 28px;
+      }
+    }
+
+    /* ---------- TABLETS (iPad / Galaxy Tab) ---------- */
+    @media (min-width: 700px) and (max-width: 1100px) {
+      .hero-section {
+        height: 350px;
+        background-size: cover;
+        padding-top: 40px;
+      }
+
+      h2 {
+        font-size: 32px;
+        margin-top: 25px;
+      }
+
+      .mode-container {
+        gap: 30px;
+      }
+
+      .mode-box {
+        width: 260px;
+        padding: 22px;
+        font-size: 22px;
+        border-radius: 22px;
+      }
+
+      .scan-btn {
+        padding: 20px 50px;
+        font-size: 28px;
+        border-radius: 40px;
+        margin-top: 35px;
+      }
+    }
+  `;
+
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex flex-col items-center justify-center p-4">
-      {/* Language Selector - Top Right */}
-      <div className="absolute top-6 right-6 z-50">
-        <div className="flex items-center gap-2 bg-white bg-opacity-95 rounded-full px-4 py-2 shadow-lg">
-          <span className="text-blue-600 text-xl">🌐</span>
-          <select
-            value={lang}
-            onChange={handleLanguageChange}
-            className="bg-transparent font-bold text-gray-800 focus:outline-none cursor-pointer text-sm"
-          >
+    <>
+      <style>{styles}</style>
+      
+      <div style={{ backgroundColor: "#04133A", minHeight: "100vh", textAlign: "center", width: "100%" }}>
+        {/* Language Selector */}
+        <div className="language-selector">
+          <select value={lang} onChange={handleLanguageChange}>
             <option value="en">🇺🇸 English (USA)</option>
             <option value="es">🇪🇸 Español</option>
             <option value="fr">🇫🇷 Français</option>
@@ -55,107 +228,43 @@ export default function Home() {
             <option value="ar">🇸🇦 العربية</option>
           </select>
         </div>
-      </div>
 
-      {/* Main Container */}
-      <div className="w-full max-w-2xl flex flex-col items-center">
         {/* Hero Section */}
-        <div className="relative w-full h-96 flex items-center justify-center mb-8">
-          <div className="text-center">
-            <div className="text-6xl mb-4">⚡</div>
-            <h1 className="text-6xl font-black text-yellow-400 drop-shadow-lg mb-3">
-              HOMEWORK
-            </h1>
-            <h2 className="text-5xl font-black text-yellow-400 drop-shadow-lg mb-4">
-              HELPER AI
-            </h2>
-            <p className="text-xl text-white font-semibold drop-shadow-md">
-              Smart help for kids + parents
-            </p>
-          </div>
+        <div className="hero-section"></div>
+
+        {/* Heading */}
+        <h2>Who's doing homework?</h2>
+
+        {/* Mode Container */}
+        <div className="mode-container">
+          <button
+            className="mode-box"
+            onClick={handleKidMode}
+            style={{
+              backgroundColor: parentMode === false ? "#4CAF50" : "white",
+              color: parentMode === false ? "white" : "#04133A",
+            }}
+          >
+            Kid Mode
+          </button>
+
+          <button
+            className="mode-box"
+            onClick={handleParentMode}
+            style={{
+              backgroundColor: parentMode === true ? "#2196F3" : "white",
+              color: parentMode === true ? "white" : "#04133A",
+            }}
+          >
+            Parent Mode
+          </button>
         </div>
 
-        {/* Mode Selection */}
-        <div className="mb-8 w-full">
-          <p className="text-white text-center text-lg font-bold mb-6">
-            Who's doing homework?
-          </p>
-
-          <div className="flex gap-4 justify-center mb-8">
-            {/* Kid Mode Button */}
-            <button
-              onClick={handleKidMode}
-              className={`
-                py-6 px-8 rounded-3xl font-bold text-xl
-                transition-all duration-300 transform
-                flex flex-col items-center gap-3
-                ${
-                  parentMode === false
-                    ? "bg-green-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
-                    : "bg-green-600 opacity-70 hover:opacity-100"
-                }
-              `}
-            >
-              {imagesLoaded && (
-                <div className="relative w-20 h-20">
-                  <Image
-                    src="/kid.png"
-                    alt="Kid Mode"
-                    fill
-                    sizes="80px"
-                    priority
-                    style={{ objectFit: "contain" }}
-                  />
-                </div>
-              )}
-              <span className="text-white">Kid Mode</span>
-            </button>
-
-            {/* Parent Mode Button */}
-            <button
-              onClick={handleParentMode}
-              className={`
-                py-6 px-8 rounded-3xl font-bold text-xl
-                transition-all duration-300 transform
-                flex flex-col items-center gap-3
-                ${
-                  parentMode === true
-                    ? "bg-blue-500 scale-105 shadow-2xl ring-4 ring-yellow-400"
-                    : "bg-blue-600 opacity-70 hover:opacity-100"
-                }
-              `}
-            >
-              {imagesLoaded && (
-                <div className="relative w-20 h-20">
-                  <Image
-                    src="/parent.png"
-                    alt="Parent Mode"
-                    fill
-                    sizes="80px"
-                    priority
-                    style={{ objectFit: "contain" }}
-                  />
-                </div>
-              )}
-              <span className="text-white">Parent Mode</span>
-            </button>
-          </div>
-
-          {/* Mode Description */}
-          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-2xl p-3 text-center mb-8">
-            <p className="text-white text-sm font-semibold">
-              {parentMode === false
-                ? "✨ Simple explanations for kids ages 7-10"
-                : "📊 Professional explanations for adults"}
-            </p>
-          </div>
-        </div>
-
-        {/* Scan Button */}
-        <div className="flex justify-center mb-8">
+        {/* Scan Button Wrapper */}
+        <div className="scan-btn-wrapper">
           <ScanButton />
         </div>
       </div>
-    </div>
+    </>
   );
 }
