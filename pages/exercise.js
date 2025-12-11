@@ -26,8 +26,12 @@ export default function Exercise() {
         setMatches({});
         setDraggedItem(null);
 
+        // Get homework problems from localStorage for difficulty detection
+        const saved = localStorage.getItem('homeworkResult');
+        const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
+
         const res = await fetch(
-          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}`
+          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&problems=${encodeURIComponent(problemsParam)}`
         );
 
         if (!res.ok) {
