@@ -3,20 +3,26 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic, language = 'en', grade_level = 'elementary' } = req.query;
+  const { topic, language = 'en', difficulty = 'auto', problems = '' } = req.query;
 
   if (!topic) {
     return res.status(400).json({ error: 'Topic is required' });
   }
 
   try {
-    const game = generateArcadeGame(topic, language, grade_level);
+    // Analyze difficulty from problems if provided
+    const analyzedDifficulty = difficulty === 'auto' 
+      ? analyzeDifficulty(topic, problems)
+      : difficulty;
+
+    const game = generateArcadeGame(topic, language, analyzedDifficulty, problems);
     
     const rightItems = game.pairs.map(p => p.right).sort(() => Math.random() - 0.5);
 
     res.status(200).json({
       theme: game.theme,
       topic: topic,
+      difficulty: analyzedDifficulty,
       pairs: game.pairs.map((p, idx) => ({
         left: p.left,
         leftId: `item_${idx}`
@@ -34,613 +40,478 @@ export default async function handler(req, res) {
   }
 }
 
-function generateArcadeGame(topic, language, grade_level) {
+// ============================================
+// DIFFICULTY ANALYZER
+// ============================================
+
+function analyzeDifficulty(topic, problems) {
+  if (!problems) return 'intermediate';
+
+  const topicLower = topic.toLowerCase();
+  
+  if (topicLower.includes('math') || topicLower.match(/[0-9+\-×÷]/)) {
+    return analyzeMathDifficulty(problems);
+  } else if (topicLower.includes('vocab') || topicLower.includes('word')) {
+    return analyzeVocabDifficulty(problems);
+  } else if (topicLower.includes('read') || topicLower.includes('comprehension')) {
+    return analyzeReadingDifficulty(problems);
+  } else if (topicLower.includes('science')) {
+    return analyzeScienceDifficulty(problems);
+  } else if (topicLower.includes('grammar')) {
+    return analyzeGrammarDifficulty(problems);
+  } else if (topicLower.includes('geo') || topicLower.includes('capital')) {
+    return analyzeGeographyDifficulty(problems);
+  }
+  
+  return 'intermediate';
+}
+
+function analyzeMathDifficulty(problems) {
+  if (!problems) return 'intermediate';
+  
+  const problemStr = String(problems).split(/[\n,]/)[0];
+  const digits = (problemStr.match(/\d/g) || []).length;
+  const maxNum = Math.max(...(problemStr.match(/\d+/g) || [0]).map(Number));
+  
+  if (maxNum < 10) return 'easy';
+  if (maxNum < 100) return 'intermediate';
+  if (maxNum < 1000) return 'advanced';
+  return 'expert';
+}
+
+function analyzeVocabDifficulty(problems) {
+  if (!problems) return 'intermediate';
+  
+  const words = String(problems).split(/[\s,\n]+/).filter(w => w.length > 0);
+  const avgLength = words.reduce((sum, w) => sum + w.length, 0) / words.length;
+  
+  if (avgLength < 5) return 'easy';
+  if (avgLength < 8) return 'intermediate';
+  if (avgLength < 12) return 'advanced';
+  return 'expert';
+}
+
+function analyzeReadingDifficulty(problems) {
+  if (!problems) return 'intermediate';
+  
+  const text = String(problems);
+  const sentences = (text.match(/[.!?]/g) || []).length;
+  const words = text.split(/\s+/).length;
+  const avgSentenceLength = words / (sentences || 1);
+  
+  if (avgSentenceLength < 8) return 'easy';
+  if (avgSentenceLength < 15) return 'intermediate';
+  if (avgSentenceLength < 25) return 'advanced';
+  return 'expert';
+}
+
+function analyzeScienceDifficulty(problems) {
+  if (!problems) return 'intermediate';
+  
+  const text = String(problems).toLowerCase();
+  const complexity = text.length;
+  
+  if (complexity < 30) return 'easy';
+  if (complexity < 100) return 'intermediate';
+  if (complexity < 300) return 'advanced';
+  return 'expert';
+}
+
+function analyzeGrammarDifficulty(problems) {
+  if (!problems) return 'intermediate';
+  
+  const text = String(problems);
+  const hasComplexSyntax = /;|:/.test(text);
+  const hasPerfectTense = /has|have|had/.test(text.toLowerCase());
+  
+  if (hasComplexSyntax || hasPerfectTense) return 'advanced';
+  if (/is|are|am|was|were/.test(text.toLowerCase())) return 'intermediate';
+  return 'easy';
+}
+
+function analyzeGeographyDifficulty(problems) {
+  // Geography difficulty is usually consistent
+  return 'intermediate';
+}
+
+// ============================================
+// GAME GENERATOR
+// ============================================
+
+function generateArcadeGame(topic, language, difficulty, problems) {
   const topicLower = topic.toLowerCase();
 
-  if (topicLower.includes('addition')) return getAdditionGame(language);
-  if (topicLower.includes('multiplication')) return getMultiplicationGame(language);
-  if (topicLower.includes('subtraction')) return getSubtractionGame(language);
-  if (topicLower.includes('division')) return getDivisionGame(language);
-  if (topicLower.includes('fractions')) return getFractionsGame(language);
-  if (topicLower.includes('vocabulary')) return getVocabularyGame(language);
-  if (topicLower.includes('synonym')) return getSynonymGame(language);
-  if (topicLower.includes('antonym')) return getAntonymGame(language);
-  if (topicLower.includes('animal')) return getAnimalGame(language);
-  if (topicLower.includes('color')) return getColorGame(language);
-  if (topicLower.includes('body')) return getBodyPartGame(language);
-  if (topicLower.includes('capital')) return getCapitalGame(language);
+  if (topicLower.includes('math') || topicLower.match(/[0-9+\-×÷]/)) {
+    return generateMathGame(language, difficulty, problems);
+  } else if (topicLower.includes('vocab') || topicLower.includes('word')) {
+    return generateVocabularyGame(language, difficulty, problems);
+  } else if (topicLower.includes('read') || topicLower.includes('comprehension')) {
+    return generateReadingGame(language, difficulty, problems);
+  } else if (topicLower.includes('science')) {
+    return generateScienceGame(language, difficulty, problems);
+  } else if (topicLower.includes('grammar')) {
+    return generateGrammarGame(language, difficulty, problems);
+  } else if (topicLower.includes('geo') || topicLower.includes('capital')) {
+    return generateGeographyGame(language, difficulty, problems);
+  }
   
   return getDefaultGame(language);
 }
 
 // ============================================
-// ADDITION - MATH BLASTER
+// MATH GAMES - DYNAMIC DIFFICULTY
 // ============================================
-function getAdditionGame(language) {
-  const games = {
-    en: {
-      theme: '🚀 MATH BLASTER',
-      instructions: 'Blast matching numbers! Drag left to right!',
-      pairs: [
-        { left: '💥 2+3', right: '5 🎯' },
-        { left: '⚡ 5+5', right: '10 ⭐' },
-        { left: '🔥 3+4', right: '7 💫' },
-        { left: '✨ 6+2', right: '8 🎪' },
-        { left: '🎸 4+1', right: '5 🎬' },
-        { left: '🎭 7+3', right: '10 🎨' }
-      ]
-    },
-    es: {
-      theme: '🚀 BLASTER MATEMÁTICO',
-      instructions: '¡Combina números! ¡Arrastra izquierda a derecha!',
-      pairs: [
-        { left: '💥 2+3', right: '5 🎯' },
-        { left: '⚡ 5+5', right: '10 ⭐' },
-        { left: '🔥 3+4', right: '7 💫' },
-        { left: '✨ 6+2', right: '8 🎪' },
-        { left: '🎸 4+1', right: '5 🎬' }
-      ]
-    },
-    fr: {
-      theme: '🚀 BLASTER MATH',
-      instructions: 'Tire sur les nombres! Traîne gauche à droite!',
-      pairs: [
-        { left: '💥 2+3', right: '5 🎯' },
-        { left: '⚡ 5+5', right: '10 ⭐' },
-        { left: '🔥 3+4', right: '7 💫' },
-        { left: '✨ 6+2', right: '8 🎪' }
-      ]
-    },
-    de: {
-      theme: '🚀 MATHE-BLASTER',
-      instructions: 'Zahlen treffen! Zieh von links nach rechts!',
-      pairs: [
-        { left: '💥 2+3', right: '5 🎯' },
-        { left: '⚡ 5+5', right: '10 ⭐' },
-        { left: '🔥 3+4', right: '7 💫' },
-        { left: '✨ 6+2', right: '8 🎪' }
-      ]
-    },
-    ar: {
-      theme: '🚀 كاسر الرياضيات',
-      instructions: '!اجعل الأرقام تتطابق! اسحب من اليسار إلى اليمين',
-      pairs: [
-        { left: '💥 ٢+٣', right: '٥ 🎯' },
-        { left: '⚡ ٥+٥', right: '١٠ ⭐' },
-        { left: '🔥 ٣+٤', right: '٧ 💫' },
-        { left: '✨ ٦+٢', right: '٨ 🎪' }
-      ]
-    }
+
+function generateMathGame(language, difficulty, problems) {
+  const mathDifficulty = difficulty || analyzeMathDifficulty(problems);
+  
+  const themes = {
+    en: '🚀 MATH BLASTER',
+    es: '🚀 BLASTER MATEMÁTICO',
+    fr: '🚀 BLASTER MATH',
+    de: '🚀 MATHE-BLASTER',
+    ar: '🚀 كاسر الرياضيات'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match the problems to their answers!',
+    es: '¡Combina los problemas con sus respuestas!',
+    fr: 'Associez les problèmes à leurs réponses!',
+    de: 'Ordnen Sie die Probleme ihren Antworten zu!',
+    ar: '!طابق المشاكل بإجاباتها'
+  };
+
+  let pairs = [];
+
+  if (mathDifficulty === 'easy') {
+    pairs = [
+      { left: '2 + 3', right: '5' },
+      { left: '4 + 1', right: '5' },
+      { left: '3 + 2', right: '5' },
+      { left: '1 + 4', right: '5' },
+      { left: '2 + 2', right: '4' },
+      { left: '3 + 1', right: '4' }
+    ];
+  } else if (mathDifficulty === 'intermediate') {
+    pairs = [
+      { left: '12 + 15', right: '27' },
+      { left: '24 + 13', right: '37' },
+      { left: '18 + 22', right: '40' },
+      { left: '31 + 19', right: '50' },
+      { left: '26 + 14', right: '40' },
+      { left: '33 + 17', right: '50' }
+    ];
+  } else if (mathDifficulty === 'advanced') {
+    pairs = [
+      { left: '147 + 65', right: '212' },
+      { left: '284 + 118', right: '402' },
+      { left: '356 + 179', right: '535' },
+      { left: '423 + 267', right: '690' },
+      { left: '518 + 182', right: '700' },
+      { left: '645 + 138', right: '783' }
+    ];
+  } else {
+    pairs = [
+      { left: '1247 + 853', right: '2100' },
+      { left: '2584 + 1416', right: '4000' },
+      { left: '3672 + 2128', right: '5800' },
+      { left: '4891 + 3209', right: '8100' },
+      { left: '5234 + 2766', right: '8000' },
+      { left: '6145 + 2855', right: '9000' }
+    ];
+  }
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// MULTIPLICATION - NINJA NUMBERS
+// VOCABULARY GAMES - DYNAMIC DIFFICULTY
 // ============================================
-function getMultiplicationGame(language) {
-  const games = {
-    en: {
-      theme: '🎮 NINJA NUMBERS',
-      instructions: 'Slice through the math! Connect left to right!',
-      pairs: [
-        { left: '⚔️ 2×3', right: '6 🥋' },
-        { left: '🗡️ 4×5', right: '20 💪' },
-        { left: '🔪 3×3', right: '9 🏆' },
-        { left: '⚡ 2×7', right: '14 🎯' },
-        { left: '💥 5×2', right: '10 🎊' },
-        { left: '✨ 6×2', right: '12 🌟' }
-      ]
-    },
-    es: {
-      theme: '🎮 NINJA NÚMEROS',
-      instructions: '¡Corta la matemática! ¡Conecta izquierda a derecha!',
-      pairs: [
-        { left: '⚔️ 2×3', right: '6 🥋' },
-        { left: '🗡️ 4×5', right: '20 💪' },
-        { left: '🔪 3×3', right: '9 🏆' },
-        { left: '⚡ 2×7', right: '14 🎯' }
-      ]
-    },
-    fr: {
-      theme: '🎮 CHIFFRES NINJA',
-      instructions: 'Tranche les maths! Relie gauche à droite!',
-      pairs: [
-        { left: '⚔️ 2×3', right: '6 🥋' },
-        { left: '🗡️ 4×5', right: '20 💪' },
-        { left: '🔪 3×3', right: '9 🏆' },
-        { left: '⚡ 2×7', right: '14 🎯' }
-      ]
-    },
-    ar: {
-      theme: '🎮 أرقام النينجا',
-      instructions: '!قطع الرياضيات! ربط اليسار باليمين!',
-      pairs: [
-        { left: '⚔️ ٢×٣', right: '٦ 🥋' },
-        { left: '🗡️ ٤×٥', right: '٢٠ 💪' },
-        { left: '🔪 ٣×٣', right: '٩ 🏆' }
-      ]
-    }
+
+function generateVocabularyGame(language, difficulty, problems) {
+  const vocabDifficulty = difficulty || analyzeVocabDifficulty(problems);
+
+  const themes = {
+    en: '🦝 WORD MASTER',
+    es: '🦝 MAESTRO DE PALABRAS',
+    fr: '🦝 MAÎTRE DES MOTS',
+    ar: '🦝 معلم الكلمات'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match words to their meanings!',
+    es: '¡Combina palabras con sus significados!',
+    fr: 'Associez les mots à leurs sens!',
+    ar: '!طابق الكلمات بمعانيها'
+  };
+
+  let pairs = [];
+
+  if (vocabDifficulty === 'easy') {
+    pairs = [
+      { left: 'happy', right: 'joyful' },
+      { left: 'big', right: 'large' },
+      { left: 'fast', right: 'quick' },
+      { left: 'cold', right: 'freezing' },
+      { left: 'loud', right: 'noisy' },
+      { left: 'small', right: 'tiny' }
+    ];
+  } else if (vocabDifficulty === 'intermediate') {
+    pairs = [
+      { left: 'benevolent', right: 'kind and generous' },
+      { left: 'meticulous', right: 'very careful' },
+      { left: 'eloquent', right: 'fluent speaker' },
+      { left: 'pragmatic', right: 'practical approach' },
+      { left: 'ambiguous', right: 'unclear meaning' },
+      { left: 'tenacious', right: 'persistent' }
+    ];
+  } else if (vocabDifficulty === 'advanced') {
+    pairs = [
+      { left: 'ephemeral', right: 'lasting briefly' },
+      { left: 'ubiquitous', right: 'everywhere present' },
+      { left: 'perspicacious', right: 'keen insight' },
+      { left: 'sanguine', right: 'optimistic' },
+      { left: 'obfuscate', right: 'make unclear' },
+      { left: 'serendipity', right: 'fortunate accident' }
+    ];
+  } else {
+    pairs = [
+      { left: 'sesquipedalian', right: 'lengthy word' },
+      { left: 'petrichor', right: 'rain smell' },
+      { left: 'onomatopoeia', right: 'sound imitation' },
+      { left: 'defenestration', right: 'window throwing' },
+      { left: 'gobbledygook', right: 'confusing language' },
+      { left: 'lollygag', right: 'waste time' }
+    ];
+  }
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// SUBTRACTION - PIRATE TREASURE
+// READING COMPREHENSION GAMES
 // ============================================
-function getSubtractionGame(language) {
-  const games = {
-    en: {
-      theme: '🏴‍☠️ PIRATE TREASURE',
-      instructions: 'Find the treasure! Match left to right!',
-      pairs: [
-        { left: '⚓ 5-2', right: '3 🪙' },
-        { left: '🗺️ 10-3', right: '7 💎' },
-        { left: '🏴 8-4', right: '4 👑' },
-        { left: '🦜 6-1', right: '5 🎁' },
-        { left: '⛵ 9-5', right: '4 🏴‍☠️' }
-      ]
-    },
-    es: {
-      theme: '🏴‍☠️ TESORO PIRATA',
-      instructions: '¡Encuentra el tesoro! ¡Combina izquierda a derecha!',
-      pairs: [
-        { left: '⚓ 5-2', right: '3 🪙' },
-        { left: '🗺️ 10-3', right: '7 💎' },
-        { left: '🏴 8-4', right: '4 👑' },
-        { left: '🦜 6-1', right: '5 🎁' }
-      ]
-    },
-    fr: {
-      theme: '🏴‍☠️ TRÉSOR PIRATE',
-      instructions: 'Trouvez le trésor! Mélange gauche à droite!',
-      pairs: [
-        { left: '⚓ 5-2', right: '3 🪙' },
-        { left: '🗺️ 10-3', right: '7 💎' },
-        { left: '🏴 8-4', right: '4 👑' }
-      ]
-    },
-    ar: {
-      theme: '🏴‍☠️ كنز القراصنة',
-      instructions: '!ابحث عن الكنز! طابق اليسار باليمين!',
-      pairs: [
-        { left: '⚓ ٥-٢', right: '٣ 🪙' },
-        { left: '🗺️ ١٠-٣', right: '٧ 💎' }
-      ]
-    }
+
+function generateReadingGame(language, difficulty, problems) {
+  const readingDifficulty = difficulty || analyzeReadingDifficulty(problems);
+
+  const themes = {
+    en: '📚 READING QUEST',
+    es: '📚 BÚSQUEDA DE LECTURA',
+    fr: '📚 QUÊTE DE LECTURE',
+    ar: '📚 مغامرة القراءة'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match passages to their meanings!',
+    es: '¡Combina pasajes con sus significados!',
+    fr: 'Associez les passages à leurs sens!',
+    ar: '!طابق النصوص بمعانيها'
+  };
+
+  let pairs = [];
+
+  if (readingDifficulty === 'easy') {
+    pairs = [
+      { left: 'The cat sat on the mat', right: 'Cat is sitting' },
+      { left: 'It is raining outside', right: 'Wet weather' },
+      { left: 'She likes to play', right: 'Enjoys playing' },
+      { left: 'The sun is bright', right: 'Sunny day' },
+      { left: 'Dogs are fun', right: 'Puppies are happy' },
+      { left: 'I like ice cream', right: 'Likes dessert' }
+    ];
+  } else if (readingDifficulty === 'intermediate') {
+    pairs = [
+      { left: 'The protagonist embarked on a grand adventure', right: 'Hero starts journey' },
+      { left: 'Despite the obstacles, she persevered', right: 'Continued despite difficulty' },
+      { left: 'The atmosphere was tense and foreboding', right: 'Scary mood' },
+      { left: 'He contemplated the mysterious artifact', right: 'Thought about strange object' },
+      { left: 'The revelation shocked everyone', right: 'Unexpected discovery' },
+      { left: 'Time seemed to stand still', right: 'Moment felt long' }
+    ];
+  } else {
+    pairs = [
+      { left: 'The author employs metaphorical language to convey existential dread', right: 'Uses symbols for fear' },
+      { left: 'The narrative demonstrates an intricate examination of moral ambiguity', right: 'Complex ethics shown' },
+      { left: 'Beneath the surface lies a profound commentary on societal constructs', right: 'Deep social critique' },
+      { left: 'The denouement subverts conventional narrative expectations', right: 'Ending surprises reader' },
+      { left: 'Juxtaposition of contrasting imagery creates thematic resonance', right: 'Opposites reinforce meaning' },
+      { left: 'The protagonist\s internal conflict epitomizes the fundamental human struggle', right: 'Character\s inner turmoil universal' }
+    ];
+  }
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// DIVISION - SPACE RANGER
+// SCIENCE GAMES
 // ============================================
-function getDivisionGame(language) {
-  const games = {
-    en: {
-      theme: '🌌 SPACE RANGER',
-      instructions: 'Split the asteroids! Link the equations!',
-      pairs: [
-        { left: '🛸 6÷2', right: '3 🌙' },
-        { left: '⭐ 12÷3', right: '4 🪐' },
-        { left: '🚀 15÷5', right: '3 🛰️' },
-        { left: '🌠 20÷4', right: '5 🌟' },
-        { left: '👽 8÷2', right: '4 💫' }
-      ]
-    },
-    es: {
-      theme: '🌌 RANGER ESPACIAL',
-      instructions: '¡Divide los asteroides! ¡Vincula las ecuaciones!',
-      pairs: [
-        { left: '🛸 6÷2', right: '3 🌙' },
-        { left: '⭐ 12÷3', right: '4 🪐' },
-        { left: '🚀 15÷5', right: '3 🛰️' }
-      ]
-    },
-    fr: {
-      theme: '🌌 RANGER SPATIAL',
-      instructions: 'Divisez les astéroïdes! Liez les équations!',
-      pairs: [
-        { left: '🛸 6÷2', right: '3 🌙' },
-        { left: '⭐ 12÷3', right: '4 🪐' },
-        { left: '🚀 15÷5', right: '3 🛰️' }
-      ]
-    },
-    ar: {
-      theme: '🌌 حارس الفضاء',
-      instructions: '!انقسم النيازك! ربط المعادلات!',
-      pairs: [
-        { left: '🛸 ٦÷٢', right: '٣ 🌙' },
-        { left: '⭐ ١٢÷٣', right: '٤ 🪐' }
-      ]
-    }
+
+function generateScienceGame(language, difficulty, problems) {
+  const scienceDifficulty = difficulty || analyzeScienceDifficulty(problems);
+
+  const themes = {
+    en: '🔬 SCIENCE LAB',
+    es: '🔬 LABORATORIO CIENTÍFICO',
+    fr: '🔬 LAB SCIENCE',
+    ar: '🔬 مختبر العلوم'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match science terms to definitions!',
+    es: '¡Combina términos científicos con definiciones!',
+    fr: 'Associez les termes scientifiques aux définitions!',
+    ar: '!طابق المصطلحات العلمية بالتعاريف'
+  };
+
+  let pairs = [];
+
+  if (scienceDifficulty === 'easy') {
+    pairs = [
+      { left: 'Sun', right: 'Star in sky' },
+      { left: 'Tree', right: 'Has leaves' },
+      { left: 'Water', right: 'Liquid H2O' },
+      { left: 'Animal', right: 'Living creature' },
+      { left: 'Plant', right: 'Grows from seed' },
+      { left: 'Rock', right: 'Stone on ground' }
+    ];
+  } else if (scienceDifficulty === 'intermediate') {
+    pairs = [
+      { left: 'Photosynthesis', right: 'Plants make food' },
+      { left: 'Mitochondria', right: 'Cell powerhouse' },
+      { left: 'Gravity', right: 'Pulls objects down' },
+      { left: 'Ecosystem', right: 'Living community' },
+      { left: 'Molecule', right: 'Atoms bonded' },
+      { left: 'Climate', right: 'Long-term weather' }
+    ];
+  } else {
+    pairs = [
+      { left: 'Osmosis', right: 'Water membrane movement' },
+      { left: 'Thermodynamics', right: 'Heat energy laws' },
+      { left: 'Catalysis', right: 'Reaction acceleration' },
+      { left: 'Homeostasis', right: 'Internal balance' },
+      { left: 'Entropy', right: 'Disorder increase' },
+      { left: 'Quantum entanglement', right: 'Particle connection' }
+    ];
+  }
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// FRACTIONS - PIZZA PARTY
+// GRAMMAR GAMES
 // ============================================
-function getFractionsGame(language) {
-  const games = {
-    en: {
-      theme: '🍕 PIZZA PARTY',
-      instructions: 'Slice the pizza! Match fractions to pieces!',
-      pairs: [
-        { left: '🍕 1/2', right: 'Half Pizza 🎉' },
-        { left: '🍕 1/4', right: 'Slice! 🥳' },
-        { left: '🍕 3/4', right: 'Big Bite! 😋' },
-        { left: '🍕 1/3', right: 'Three Way 👨‍👩‍👧' },
-        { left: '🍕 2/3', right: 'Double Slice 🤤' },
-        { left: '🍕 1/8', right: 'Tiny Piece! ✨' }
-      ]
-    },
-    es: {
-      theme: '🍕 FIESTA PIZZA',
-      instructions: '¡Divide la pizza! ¡Combina fracciones a piezas!',
-      pairs: [
-        { left: '🍕 1/2', right: 'Media Pizza 🎉' },
-        { left: '🍕 1/4', right: '¡Trozo! 🥳' },
-        { left: '🍕 3/4', right: '¡Bocado Grande! 😋' }
-      ]
-    },
-    fr: {
-      theme: '🍕 FÊTE PIZZA',
-      instructions: 'Divisez la pizza! Mélangez les fractions!',
-      pairs: [
-        { left: '🍕 1/2', right: 'Demi-Pizza 🎉' },
-        { left: '🍕 1/4', right: 'Tranche! 🥳' },
-        { left: '🍕 3/4', right: 'Grosse Bouchée! 😋' }
-      ]
-    },
-    ar: {
-      theme: '🍕 حفلة البيتزا',
-      instructions: '!اقسم البيتزا! طابق الكسور بالقطع!',
-      pairs: [
-        { left: '🍕 ١/٢', right: 'نصف بيتزا 🎉' },
-        { left: '🍕 ١/٤', right: 'شريحة! 🥳' }
-      ]
-    }
+
+function generateGrammarGame(language, difficulty, problems) {
+  const grammarDifficulty = difficulty || analyzeGrammarDifficulty(problems);
+
+  const themes = {
+    en: '✏️ GRAMMAR MASTER',
+    es: '✏️ MAESTRO DE GRAMÁTICA',
+    fr: '✏️ MAÎTRE DE GRAMMAIRE',
+    ar: '✏️ معلم القواعد'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match incorrect to correct!',
+    es: '¡Combina incorrecto con correcto!',
+    fr: 'Associez l\'incorrect au correct!',
+    ar: '!طابق الخطأ بالصحيح'
+  };
+
+  let pairs = [];
+
+  if (grammarDifficulty === 'easy') {
+    pairs = [
+      { left: 'She go', right: 'She goes' },
+      { left: 'I is', right: 'I am' },
+      { left: 'They was', right: 'They were' },
+      { left: 'He have', right: 'He has' },
+      { left: 'You is', right: 'You are' },
+      { left: 'It are', right: 'It is' }
+    ];
+  } else if (grammarDifficulty === 'intermediate') {
+    pairs = [
+      { left: 'She don\'t like it', right: 'She doesn\'t like it' },
+      { left: 'He were running', right: 'He was running' },
+      { left: 'They has gone', right: 'They have gone' },
+      { left: 'I seen it', right: 'I saw it' },
+      { left: 'She go yesterday', right: 'She went yesterday' },
+      { left: 'We has finished', right: 'We have finished' }
+    ];
+  } else {
+    pairs = [
+      { left: 'If I was you', right: 'If I were you' },
+      { left: 'He should of gone', right: 'He should have gone' },
+      { left: 'Between you and I', right: 'Between you and me' },
+      { left: 'Whom is calling?', right: 'Who is calling?' },
+      { left: 'Its a beautiful day', right: 'It\'s a beautiful day' },
+      { left: 'The data are complete', right: 'The data is complete' }
+    ];
+  }
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// VOCABULARY - RACCOON WORDS
+// GEOGRAPHY GAMES
 // ============================================
-function getVocabularyGame(language) {
-  const games = {
-    en: {
-      theme: '🦝 RACCOON WORDS',
-      instructions: 'Help Rocky! Match words to meanings!',
-      pairs: [
-        { left: '🦝 GLEEFUL', right: 'Super Happy! 😄' },
-        { left: '🦝 COLOSSAL', right: 'Huge! 🏔️' },
-        { left: '🦝 SWIFT', right: 'Super Fast! ⚡' },
-        { left: '🦝 RADIANT', right: 'Shiny Bright! ✨' },
-        { left: '🦝 SAGE', right: 'Very Wise! 🧠' },
-        { left: '🦝 LISTLESS', right: 'No Energy 😴' }
-      ]
-    },
-    es: {
-      theme: '🦝 PALABRAS MAPACHE',
-      instructions: '¡Ayuda a Rocky! ¡Combina palabras con significados!',
-      pairs: [
-        { left: '🦝 ALEGRE', right: '¡Super Feliz! 😄' },
-        { left: '🦝 COLOSAL', right: '¡Enorme! 🏔️' },
-        { left: '🦝 VELOZ', right: '¡Super Rápido! ⚡' },
-        { left: '🦝 RADIANTE', right: '¡Brillante! ✨' }
-      ]
-    },
-    fr: {
-      theme: '🦝 MOTS RATON',
-      instructions: 'Aide Rocky! Mélange les mots avec les sens!',
-      pairs: [
-        { left: '🦝 JOYEUX', right: 'Super Heureux! 😄' },
-        { left: '🦝 COLOSSAL', right: 'Énorme! 🏔️' },
-        { left: '🦝 RAPIDE', right: 'Super Vite! ⚡' }
-      ]
-    },
-    ar: {
-      theme: '🦝 كلمات الراكون',
-      instructions: '!ساعد روكي! طابق الكلمات بالمعاني!',
-      pairs: [
-        { left: '🦝 سعيد', right: '!سعيد جدا 😄' },
-        { left: '🦝 ضخم', right: '!ضخم 🏔️' }
-      ]
-    }
+
+function generateGeographyGame(language, difficulty, problems) {
+  const themes = {
+    en: '🗺️ WORLD EXPLORER',
+    es: '🗺️ EXPLORADOR MUNDIAL',
+    fr: '🗺️ EXPLORATEUR MONDIAL',
+    ar: '🗺️ مستكشف العالم'
   };
-  return games[language] || games['en'];
+
+  const instructions = {
+    en: 'Match countries to capitals!',
+    es: '¡Combina países con capitales!',
+    fr: 'Associez les pays aux capitales!',
+    ar: '!طابق الدول بالعواصم'
+  };
+
+  const pairs = [
+    { left: '🇫🇷 France', right: 'Paris 🗼' },
+    { left: '🇪🇸 Spain', right: 'Madrid 🎭' },
+    { left: '🇯🇵 Japan', right: 'Tokyo 🎌' },
+    { left: '🇧🇷 Brazil', right: 'Brasília ⚽' },
+    { left: '🇲🇽 Mexico', right: 'Mexico City 🌮' },
+    { left: '🇮🇹 Italy', right: 'Rome 🍝' }
+  ];
+
+  return {
+    theme: themes[language] || themes['en'],
+    instructions: instructions[language] || instructions['en'],
+    pairs: pairs
+  };
 }
 
 // ============================================
-// SYNONYMS - MAGIC TWINS
+// DEFAULT GAME
 // ============================================
-function getSynonymGame(language) {
-  const games = {
-    en: {
-      theme: '✨ MAGIC TWINS',
-      instructions: 'Find word twins! They mean the same!',
-      pairs: [
-        { left: '✨ TINY', right: 'Small ⭐' },
-        { left: '✨ JOY', right: 'Happy 🎉' },
-        { left: '✨ FURIOUS', right: 'Angry 🔥' },
-        { left: '✨ CHILLY', right: 'Cold ❄️' },
-        { left: '✨ DAMP', right: 'Wet 💧' },
-        { left: '✨ BRILLIANT', right: 'Smart 🧠' }
-      ]
-    },
-    es: {
-      theme: '✨ GEMELOS MÁGICOS',
-      instructions: '¡Encuentra gemelos! ¡Significan lo mismo!',
-      pairs: [
-        { left: '✨ PEQUEÑO', right: 'Diminuto ⭐' },
-        { left: '✨ ALEGRÍA', right: 'Feliz 🎉' },
-        { left: '✨ FURIOSO', right: 'Enojado 🔥' }
-      ]
-    },
-    fr: {
-      theme: '✨ JUMEAUX MAGIQUES',
-      instructions: 'Trouvez les jumeaux! Même sens!',
-      pairs: [
-        { left: '✨ MINUSCULE', right: 'Petit ⭐' },
-        { left: '✨ JOIE', right: 'Heureux 🎉' },
-        { left: '✨ FURIEUX', right: 'Fâché 🔥' }
-      ]
-    },
-    ar: {
-      theme: '✨ التوأم السحري',
-      instructions: '!ابحث عن كلمات التوأم! بنفس المعنى!',
-      pairs: [
-        { left: '✨ صغير', right: 'صغير جدا ⭐' },
-        { left: '✨ فرح', right: 'سعيد 🎉' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
 
-// ============================================
-// ANTONYMS - OPPOSITE WORLD
-// ============================================
-function getAntonymGame(language) {
-  const games = {
-    en: {
-      theme: '⚖️ OPPOSITE WORLD',
-      instructions: 'Find opposites! Complete opposites!',
-      pairs: [
-        { left: '⚖️ BIG', right: 'Small 🤏' },
-        { left: '⚖️ HOT', right: 'Cold ❄️' },
-        { left: '⚖️ HAPPY', right: 'Sad 😢' },
-        { left: '⚖️ FAST', right: 'Slow 🐢' },
-        { left: '⚖️ LIGHT', right: 'Dark 🌑' },
-        { left: '⚖️ GOOD', right: 'Bad 👿' }
-      ]
-    },
-    es: {
-      theme: '⚖️ MUNDO OPUESTO',
-      instructions: '¡Encuentra opuestos! ¡Completamente opuestos!',
-      pairs: [
-        { left: '⚖️ GRANDE', right: 'Pequeño 🤏' },
-        { left: '⚖️ CALIENTE', right: 'Frío ❄️' },
-        { left: '⚖️ FELIZ', right: 'Triste 😢' }
-      ]
-    },
-    fr: {
-      theme: '⚖️ MONDE OPPOSÉ',
-      instructions: 'Trouvez les opposés! Complètement opposés!',
-      pairs: [
-        { left: '⚖️ GRAND', right: 'Petit 🤏' },
-        { left: '⚖️ CHAUD', right: 'Froid ❄️' },
-        { left: '⚖️ HEUREUX', right: 'Triste 😢' }
-      ]
-    },
-    ar: {
-      theme: '⚖️ عالم معاكس',
-      instructions: '!ابحث عن أضداد! معاكسة تماما!',
-      pairs: [
-        { left: '⚖️ كبير', right: 'صغير 🤏' },
-        { left: '⚖️ ساخن', right: 'بارد ❄️' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
-
-// ============================================
-// ANIMALS - WILD KINGDOM
-// ============================================
-function getAnimalGame(language) {
-  const games = {
-    en: {
-      theme: '🦁 WILD KINGDOM',
-      instructions: 'Know the animals? Match to powers!',
-      pairs: [
-        { left: '🐕 DOG', right: 'Woof! 🦴' },
-        { left: '🐈 CAT', right: 'Meow! 🧶' },
-        { left: '🐠 FISH', right: 'Splash! 💦' },
-        { left: '🦅 EAGLE', right: 'Soar! 🌤️' },
-        { left: '🦁 LION', right: 'Roar! 👑' },
-        { left: '🦘 KANGAROO', right: 'Jump! 🏃' }
-      ]
-    },
-    es: {
-      theme: '🦁 REINO SALVAJE',
-      instructions: '¿Conoces los animales? ¡Combina con poderes!',
-      pairs: [
-        { left: '🐕 PERRO', right: '¡Guau! 🦴' },
-        { left: '🐈 GATO', right: '¡Miau! 🧶' },
-        { left: '🐠 PEZ', right: '¡Splash! 💦' },
-        { left: '🦅 ÁGUILA', right: '¡Vuela! 🌤️' }
-      ]
-    },
-    fr: {
-      theme: '🦁 ROYAUME SAUVAGE',
-      instructions: 'Connais les animaux? Mélange avec pouvoirs!',
-      pairs: [
-        { left: '🐕 CHIEN', right: 'Aboie! 🦴' },
-        { left: '🐈 CHAT', right: 'Miaule! 🧶' },
-        { left: '🐠 POISSON', right: 'Splash! 💦' }
-      ]
-    },
-    ar: {
-      theme: '🦁 المملكة البرية',
-      instructions: '؟هل تعرف الحيوانات طابقهم!',
-      pairs: [
-        { left: '🐕 كلب', right: '!نباح 🦴' },
-        { left: '🐈 قطة', right: '!مياو 🧶' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
-
-// ============================================
-// COLORS - RAINBOW BLAST
-// ============================================
-function getColorGame(language) {
-  const games = {
-    en: {
-      theme: '🎨 RAINBOW BLAST',
-      instructions: 'Paint the world! Match to things!',
-      pairs: [
-        { left: '🔴 RED', right: 'Fire! 🔥' },
-        { left: '🔵 BLUE', right: 'Sky! ☁️' },
-        { left: '🟡 YELLOW', right: 'Sun! ☀️' },
-        { left: '🟢 GREEN', right: 'Grass! 🌱' },
-        { left: '⚫ BLACK', right: 'Night! 🌙' },
-        { left: '⚪ WHITE', right: 'Snow! ❄️' }
-      ]
-    },
-    es: {
-      theme: '🎨 ARCOÍRIS EXPLOSIÓN',
-      instructions: '¡Pinta el mundo! ¡Combina a cosas!',
-      pairs: [
-        { left: '🔴 ROJO', right: '¡Fuego! 🔥' },
-        { left: '🔵 AZUL', right: '¡Cielo! ☁️' },
-        { left: '🟡 AMARILLO', right: '¡Sol! ☀️' },
-        { left: '🟢 VERDE', right: '¡Pasto! 🌱' }
-      ]
-    },
-    fr: {
-      theme: '🎨 EXPLOSION ARC-EN-CIEL',
-      instructions: 'Peins le monde! Mélange les couleurs!',
-      pairs: [
-        { left: '🔴 ROUGE', right: 'Feu! 🔥' },
-        { left: '🔵 BLEU', right: 'Ciel! ☁️' },
-        { left: '🟡 JAUNE', right: 'Soleil! ☀️' }
-      ]
-    },
-    ar: {
-      theme: '🎨 انفجار قوس قزح',
-      instructions: '!اطلي العالم طابق بالأشياء!',
-      pairs: [
-        { left: '🔴 أحمر', right: '!نار 🔥' },
-        { left: '🔵 أزرق', right: '!سماء ☁️' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
-
-// ============================================
-// BODY PARTS - SUPERHERO BODY
-// ============================================
-function getBodyPartGame(language) {
-  const games = {
-    en: {
-      theme: '💪 SUPERHERO BODY',
-      instructions: 'Build a hero! Match parts to powers!',
-      pairs: [
-        { left: '🧠 HEAD', right: 'Think! 💭' },
-        { left: '👀 EYES', right: 'See! 🔍' },
-        { left: '👂 EARS', right: 'Hear! 🔊' },
-        { left: '👃 NOSE', right: 'Smell! 🌹' },
-        { left: '🙌 HANDS', right: 'Grab! 🎁' },
-        { left: '🦵 FEET', right: 'Run! 🏃' }
-      ]
-    },
-    es: {
-      theme: '💪 CUERPO SUPERHÉROE',
-      instructions: '¡Construye un héroe! ¡Combina partes!',
-      pairs: [
-        { left: '🧠 CABEZA', right: '¡Piensa! 💭' },
-        { left: '👀 OJOS', right: '¡Mira! 🔍' },
-        { left: '👂 OREJAS', right: '¡Escucha! 🔊' },
-        { left: '👃 NARIZ', right: '¡Huele! 🌹' }
-      ]
-    },
-    fr: {
-      theme: '💪 CORPS SUPER-HÉROS',
-      instructions: 'Construis un héros! Mélange les parties!',
-      pairs: [
-        { left: '🧠 TÊTE', right: 'Pense! 💭' },
-        { left: '👀 YEUX', right: 'Vois! 🔍' },
-        { left: '👂 OREILLES', right: 'Entends! 🔊' }
-      ]
-    },
-    ar: {
-      theme: '💪 جسم فوق بشري',
-      instructions: '!ابن بطلا طابق أجزاء!',
-      pairs: [
-        { left: '🧠 رأس', right: '!فكر 💭' },
-        { left: '👀 عيون', right: '!انظر 🔍' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
-
-// ============================================
-// CAPITALS - WORLD EXPLORER
-// ============================================
-function getCapitalGame(language) {
-  const games = {
-    en: {
-      theme: '🗺️ WORLD EXPLORER',
-      instructions: 'Explore! Match countries to capitals!',
-      pairs: [
-        { left: '🇫🇷 FRANCE', right: 'Paris! 🗼' },
-        { left: '🇪🇸 SPAIN', right: 'Madrid! 🎭' },
-        { left: '🇯🇵 JAPAN', right: 'Tokyo! 🎌' },
-        { left: '🇧🇷 BRAZIL', right: 'Brasília! ⚽' },
-        { left: '🇲🇽 MEXICO', right: 'Mexico City! 🌮' },
-        { left: '🇮🇹 ITALY', right: 'Rome! 🍝' }
-      ]
-    },
-    es: {
-      theme: '🗺️ EXPLORADOR MUNDIAL',
-      instructions: '¡Explora! ¡Combina países con capitales!',
-      pairs: [
-        { left: '🇫🇷 FRANCIA', right: '¡París! 🗼' },
-        { left: '🇪🇸 ESPAÑA', right: '¡Madrid! 🎭' },
-        { left: '🇯🇵 JAPÓN', right: '¡Tokio! 🎌' }
-      ]
-    },
-    fr: {
-      theme: '🗺️ EXPLORATEUR MONDIAL',
-      instructions: 'Explore! Mélange les pays!',
-      pairs: [
-        { left: '🇫🇷 FRANCE', right: 'Paris! 🗼' },
-        { left: '🇪🇸 ESPAGNE', right: 'Madrid! 🎭' },
-        { left: '🇯🇵 JAPON', right: 'Tokyo! 🎌' }
-      ]
-    },
-    ar: {
-      theme: '🗺️ مستكشف العالم',
-      instructions: '!استكشف طابق الدول بالعواصم!',
-      pairs: [
-        { left: '🇫🇷 فرنسا', right: '!باريس 🗼' },
-        { left: '🇪🇸 إسبانيا', right: '!مدريد 🎭' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
-}
-
-// ============================================
-// DEFAULT - WORD WARRIOR
-// ============================================
 function getDefaultGame(language) {
   const games = {
     en: {
@@ -659,22 +530,6 @@ function getDefaultGame(language) {
       pairs: [
         { left: '🎮 JUGAR', right: '¡Diversión! 🎉' },
         { left: '🎮 APRENDER', right: '¡Inteligente! 🧠' }
-      ]
-    },
-    fr: {
-      theme: '🎮 GUERRIER DES MOTS',
-      instructions: 'Prêt! Relie gauche à droite!',
-      pairs: [
-        { left: '🎮 JOUER', right: 'Amusement! 🎉' },
-        { left: '🎮 APPRENDRE', right: 'Intelligent! 🧠' }
-      ]
-    },
-    ar: {
-      theme: '🎮 محارب الكلمات',
-      instructions: '!جاهز ربط اليسار باليمين!',
-      pairs: [
-        { left: '🎮 العب', right: '!متعة 🎉' },
-        { left: '🎮 تعلم', right: '!ذكي 🧠' }
       ]
     }
   };
