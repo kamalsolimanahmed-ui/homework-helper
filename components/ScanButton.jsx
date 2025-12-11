@@ -7,11 +7,15 @@ export default function ScanButton() {
   const router = useRouter();
 
   function openCamera() {
-    inputRef.current.click();
+    // Reset input value to allow re-selecting same file
+    if (inputRef.current) {
+      inputRef.current.value = "";
+      inputRef.current.click();
+    }
   }
 
   async function handleImageCapture(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
 
     if (!file) {
       console.log("❌ No file selected");
@@ -100,13 +104,26 @@ export default function ScanButton() {
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
 
+      {/* MOBILE CAMERA FIX: Use position absolute instead of display:none */}
+      {/* This keeps the input in the DOM and accessible to mobile browsers */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         onChange={handleImageCapture}
-        className="hidden"
+        style={{
+          position: "absolute",
+          top: "-9999px",
+          left: "-9999px",
+          width: "1px",
+          height: "1px",
+          opacity: "0",
+          visibility: "hidden",
+          pointerEvents: "none",
+        }}
         aria-hidden="true"
+        tabIndex="-1"
       />
     </>
   );
