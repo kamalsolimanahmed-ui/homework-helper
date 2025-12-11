@@ -11,7 +11,7 @@ export default function CameraScan() {
   const stillnessCheckRef = useRef({
     previousFrame: null,
     stillCounter: 0,
-    requiredFrames: 8,
+    requiredFrames: 50,  // Premium: ~2 seconds at 24fps
   });
 
   const [status, setStatus] = useState('Requesting camera access...');
@@ -102,10 +102,10 @@ export default function CameraScan() {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
       const sharpness = calculateLaplacianVariance(imageData);
-      const isSharp = sharpness > 100;
+      const isSharp = sharpness > 150;  // Premium: higher threshold
 
       const brightness = calculateAverageLuminance(imageData);
-      const isBright = brightness > 50 && brightness < 200;
+      const isBright = brightness > 60 && brightness < 190;  // Premium: stricter range
 
       let hasText = false;
       try {
@@ -115,7 +115,7 @@ export default function CameraScan() {
       }
 
       const frameDiff = calculateFrameDifference(imageData, stillnessCheckRef.current.previousFrame);
-      const isStill = frameDiff < 15;
+      const isStill = frameDiff < 8;  // Premium: much stricter stillness
 
       if (isStill) {
         stillnessCheckRef.current.stillCounter++;
@@ -126,15 +126,15 @@ export default function CameraScan() {
       stillnessCheckRef.current.previousFrame = imageData;
 
       if (!isSharp) {
-        setHint('Move closer or adjust focus');
+        setHint('Move closer - focus needed');
       } else if (!isBright) {
-        setHint('Too dark - move to better lighting');
+        setHint('Improve lighting');
       } else if (!hasText) {
         setHint('Point at homework');
       } else if (!isStill) {
-        setHint('Keep steady...');
+        setHint('Hold very steady...');
       } else {
-        setHint('');
+        setHint('Perfect! Capturing...');
       }
 
       if (isSharp && isBright && hasText && stillnessCheckRef.current.stillCounter >= stillnessCheckRef.current.requiredFrames) {
