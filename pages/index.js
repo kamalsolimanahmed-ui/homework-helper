@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import ScanButton from "../components/ScanButton";
 
 export default function Home() {
@@ -174,6 +175,27 @@ export default function Home() {
       transform: scale(1.05);
     }
 
+    .camera-scan-btn {
+      display: inline-block;
+      padding: 20px 50px !important;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+      color: white !important;
+      border-radius: 45px !important;
+      font-size: 28px !important;
+      font-weight: bold !important;
+      cursor: pointer;
+      transition: 0.2s;
+      border: none !important;
+      text-decoration: none;
+      font-family: Arial, sans-serif !important;
+      margin-left: 20px;
+    }
+
+    .camera-scan-btn:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+      transform: scale(1.05);
+    }
+
     /* ---------- RESPONSIVE ADJUSTMENTS FOR BUTTONS ---------- */
     @media (max-width: 700px) {
       h2 {
@@ -204,9 +226,21 @@ export default function Home() {
         border-radius: 38px !important;
       }
 
+      .camera-scan-btn {
+        padding: 16px 40px !important;
+        font-size: 22px !important;
+        border-radius: 38px !important;
+        margin-left: 0 !important;
+        margin-top: 12px !important;
+      }
+
       .scan-btn-wrapper {
         margin-top: 60px;
         margin-bottom: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
       }
     }
 
@@ -228,9 +262,21 @@ export default function Home() {
         border-radius: 32px !important;
       }
 
+      .camera-scan-btn {
+        padding: 14px 32px !important;
+        font-size: 20px !important;
+        border-radius: 32px !important;
+        margin-left: 0 !important;
+        margin-top: 12px !important;
+      }
+
       .scan-btn-wrapper {
         margin-top: 50px;
         margin-bottom: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
       }
     }
 
@@ -259,9 +305,20 @@ export default function Home() {
         border-radius: 50px !important;
       }
 
+      .camera-scan-btn {
+        padding: 22px 55px !important;
+        font-size: 30px !important;
+        border-radius: 50px !important;
+        margin-left: 20px;
+      }
+
       .scan-btn-wrapper {
         margin-top: 30px;
         margin-bottom: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
       }
     }
   `;
@@ -316,6 +373,9 @@ export default function Home() {
         {/* Scan Button Wrapper - BIGGER & MORE PROFESSIONAL - NOW WITH MORE SPACE */}
         <div className="scan-btn-wrapper">
           <ScanButton />
+          <Link href="/camera-scan">
+            <button className="camera-scan-btn">📸 Live Camera Scan</button>
+          </Link>
         </div>
       </div>
     </>
