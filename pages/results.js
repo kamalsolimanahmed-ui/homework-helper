@@ -263,6 +263,11 @@ export default function Results() {
           >
             🖨️ Print Answers
           </button>
+          <Link href={`/exercise?topic=${result.topic}&language=${localStorage.getItem('lang') || 'en'}`}>
+            <button className="px-8 py-4 bg-purple-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-purple-700 transition-all">
+              ⭐ Practice Exercise
+            </button>
+          </Link>
         </div>
       </div>
     </div>
