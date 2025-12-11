@@ -3,26 +3,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic, language = 'en', difficulty = 'auto', problems = '' } = req.query;
+  const { topic = 'addition', language = 'en', difficulty = 'medium' } = req.query;
 
   if (!topic) {
     return res.status(400).json({ error: 'Topic is required' });
   }
 
   try {
-    // Analyze difficulty from problems if provided
-    const analyzedDifficulty = difficulty === 'auto' 
-      ? analyzeDifficulty(topic, problems)
-      : difficulty;
-
-    const game = generateArcadeGame(topic, language, analyzedDifficulty, problems);
+    const game = generateArcadeGame(topic, language, difficulty);
     
     const rightItems = game.pairs.map(p => p.right).sort(() => Math.random() - 0.5);
 
     res.status(200).json({
       theme: game.theme,
       topic: topic,
-      difficulty: analyzedDifficulty,
+      difficulty: difficulty,
       pairs: game.pairs.map((p, idx) => ({
         left: p.left,
         leftId: `item_${idx}`
@@ -41,150 +36,149 @@ export default async function handler(req, res) {
 }
 
 // ============================================
-// DIFFICULTY ANALYZER
+// THEME MAPPING BY TOPIC
 // ============================================
 
-function analyzeDifficulty(topic, problems) {
-  if (!problems) return 'intermediate';
+const THEME_MAP = {
+  math: [
+    { difficulty: 'easy', theme: '🚀 MATH BLASTER', en: 'Match the problems!', es: '¡Combina los problemas!' },
+    { difficulty: 'medium', theme: '🎮 NINJA NUMBERS', en: 'Slice through the math!', es: '¡Corta la matemática!' },
+    { difficulty: 'hard', theme: '🌌 SPACE RANGER', en: 'Split the asteroids!', es: '¡Divide los asteroides!' }
+  ],
+  addition: [
+    { difficulty: 'easy', theme: '🚀 MATH BLASTER', en: 'Match the problems!', es: '¡Combina los problemas!' },
+    { difficulty: 'medium', theme: '🚀 MATH BLASTER', en: 'Match the problems!', es: '¡Combina los problemas!' },
+    { difficulty: 'hard', theme: '🚀 MATH BLASTER', en: 'Match the problems!', es: '¡Combina los problemas!' }
+  ],
+  subtraction: [
+    { difficulty: 'easy', theme: '🏴‍☠️ PIRATE MATH', en: 'Find the treasure!', es: '¡Encuentra el tesoro!' },
+    { difficulty: 'medium', theme: '🏴‍☠️ PIRATE MATH', en: 'Find the treasure!', es: '¡Encuentra el tesoro!' },
+    { difficulty: 'hard', theme: '🏴‍☠️ PIRATE MATH', en: 'Find the treasure!', es: '¡Encuentra el tesoro!' }
+  ],
+  multiplication: [
+    { difficulty: 'easy', theme: '🎮 NINJA NUMBERS', en: 'Slice through!', es: '¡Corta!' },
+    { difficulty: 'medium', theme: '🎮 NINJA NUMBERS', en: 'Slice through!', es: '¡Corta!' },
+    { difficulty: 'hard', theme: '🎮 NINJA NUMBERS', en: 'Slice through!', es: '¡Corta!' }
+  ],
+  division: [
+    { difficulty: 'easy', theme: '🌌 SPACE RANGER', en: 'Split asteroids!', es: '¡Divide asteroides!' },
+    { difficulty: 'medium', theme: '🌌 SPACE RANGER', en: 'Split asteroids!', es: '¡Divide asteroides!' },
+    { difficulty: 'hard', theme: '🌌 SPACE RANGER', en: 'Split asteroids!', es: '¡Divide asteroides!' }
+  ],
+  vocabulary: [
+    { difficulty: 'easy', theme: '🦝 RACCOON WORDS', en: 'Match words!', es: '¡Combina palabras!' },
+    { difficulty: 'medium', theme: '🦝 RACCOON WORDS', en: 'Match words!', es: '¡Combina palabras!' },
+    { difficulty: 'hard', theme: '🦝 RACCOON WORDS', en: 'Match words!', es: '¡Combina palabras!' }
+  ],
+  synonym: [
+    { difficulty: 'easy', theme: '✨ MAGIC TWINS', en: 'Find word twins!', es: '¡Encuentra gemelos!' },
+    { difficulty: 'medium', theme: '✨ MAGIC TWINS', en: 'Find word twins!', es: '¡Encuentra gemelos!' },
+    { difficulty: 'hard', theme: '✨ MAGIC TWINS', en: 'Find word twins!', es: '¡Encuentra gemelos!' }
+  ],
+  antonym: [
+    { difficulty: 'easy', theme: '⚖️ OPPOSITE WORLD', en: 'Find opposites!', es: '¡Encuentra opuestos!' },
+    { difficulty: 'medium', theme: '⚖️ OPPOSITE WORLD', en: 'Find opposites!', es: '¡Encuentra opuestos!' },
+    { difficulty: 'hard', theme: '⚖️ OPPOSITE WORLD', en: 'Find opposites!', es: '¡Encuentra opuestos!' }
+  ],
+  animal: [
+    { difficulty: 'easy', theme: '🦁 WILD KINGDOM', en: 'Know the animals?', es: '¿Conoces los animales?' },
+    { difficulty: 'medium', theme: '🦁 WILD KINGDOM', en: 'Know the animals?', es: '¿Conoces los animales?' },
+    { difficulty: 'hard', theme: '🦁 WILD KINGDOM', en: 'Know the animals?', es: '¿Conoces los animales?' }
+  ],
+  color: [
+    { difficulty: 'easy', theme: '🎨 RAINBOW BLAST', en: 'Paint the world!', es: '¡Pinta el mundo!' },
+    { difficulty: 'medium', theme: '🎨 RAINBOW BLAST', en: 'Paint the world!', es: '¡Pinta el mundo!' },
+    { difficulty: 'hard', theme: '🎨 RAINBOW BLAST', en: 'Paint the world!', es: '¡Pinta el mundo!' }
+  ],
+  body: [
+    { difficulty: 'easy', theme: '💪 SUPERHERO BODY', en: 'Build a hero!', es: '¡Construye un héroe!' },
+    { difficulty: 'medium', theme: '💪 SUPERHERO BODY', en: 'Build a hero!', es: '¡Construye un héroe!' },
+    { difficulty: 'hard', theme: '💪 SUPERHERO BODY', en: 'Build a hero!', es: '¡Construye un héroe!' }
+  ],
+  geography: [
+    { difficulty: 'easy', theme: '🗺️ WORLD EXPLORER', en: 'Explore!', es: '¡Explora!' },
+    { difficulty: 'medium', theme: '🗺️ WORLD EXPLORER', en: 'Explore!', es: '¡Explora!' },
+    { difficulty: 'hard', theme: '🗺️ WORLD EXPLORER', en: 'Explore!', es: '¡Explora!' }
+  ],
+  reading: [
+    { difficulty: 'easy', theme: '📚 READING QUEST', en: 'Read and match!', es: '¡Lee y combina!' },
+    { difficulty: 'medium', theme: '📚 READING QUEST', en: 'Read and match!', es: '¡Lee y combina!' },
+    { difficulty: 'hard', theme: '📚 READING QUEST', en: 'Read and match!', es: '¡Lee y combina!' }
+  ]
+};
 
+// ============================================
+// MAIN GAME GENERATOR
+// ============================================
+
+function generateArcadeGame(topic, language, difficulty) {
   const topicLower = topic.toLowerCase();
   
-  if (topicLower.includes('math') || topicLower.match(/[0-9+\-×÷]/)) {
-    return analyzeMathDifficulty(problems);
-  } else if (topicLower.includes('vocab') || topicLower.includes('word')) {
-    return analyzeVocabDifficulty(problems);
-  } else if (topicLower.includes('read') || topicLower.includes('comprehension')) {
-    return analyzeReadingDifficulty(problems);
-  } else if (topicLower.includes('science')) {
-    return analyzeScienceDifficulty(problems);
-  } else if (topicLower.includes('grammar')) {
-    return analyzeGrammarDifficulty(problems);
-  } else if (topicLower.includes('geo') || topicLower.includes('capital')) {
-    return analyzeGeographyDifficulty(problems);
-  }
+  // Get theme for this topic + difficulty
+  const themeData = getTheme(topicLower, difficulty, language);
   
-  return 'intermediate';
-}
-
-function analyzeMathDifficulty(problems) {
-  if (!problems) return 'intermediate';
-  
-  const problemStr = String(problems).split(/[\n,]/)[0];
-  const digits = (problemStr.match(/\d/g) || []).length;
-  const maxNum = Math.max(...(problemStr.match(/\d+/g) || [0]).map(Number));
-  
-  if (maxNum < 10) return 'easy';
-  if (maxNum < 100) return 'intermediate';
-  if (maxNum < 1000) return 'advanced';
-  return 'expert';
-}
-
-function analyzeVocabDifficulty(problems) {
-  if (!problems) return 'intermediate';
-  
-  const words = String(problems).split(/[\s,\n]+/).filter(w => w.length > 0);
-  const avgLength = words.reduce((sum, w) => sum + w.length, 0) / words.length;
-  
-  if (avgLength < 5) return 'easy';
-  if (avgLength < 8) return 'intermediate';
-  if (avgLength < 12) return 'advanced';
-  return 'expert';
-}
-
-function analyzeReadingDifficulty(problems) {
-  if (!problems) return 'intermediate';
-  
-  const text = String(problems);
-  const sentences = (text.match(/[.!?]/g) || []).length;
-  const words = text.split(/\s+/).length;
-  const avgSentenceLength = words / (sentences || 1);
-  
-  if (avgSentenceLength < 8) return 'easy';
-  if (avgSentenceLength < 15) return 'intermediate';
-  if (avgSentenceLength < 25) return 'advanced';
-  return 'expert';
-}
-
-function analyzeScienceDifficulty(problems) {
-  if (!problems) return 'intermediate';
-  
-  const text = String(problems).toLowerCase();
-  const complexity = text.length;
-  
-  if (complexity < 30) return 'easy';
-  if (complexity < 100) return 'intermediate';
-  if (complexity < 300) return 'advanced';
-  return 'expert';
-}
-
-function analyzeGrammarDifficulty(problems) {
-  if (!problems) return 'intermediate';
-  
-  const text = String(problems);
-  const hasComplexSyntax = /;|:/.test(text);
-  const hasPerfectTense = /has|have|had/.test(text.toLowerCase());
-  
-  if (hasComplexSyntax || hasPerfectTense) return 'advanced';
-  if (/is|are|am|was|were/.test(text.toLowerCase())) return 'intermediate';
-  return 'easy';
-}
-
-function analyzeGeographyDifficulty(problems) {
-  // Geography difficulty is usually consistent
-  return 'intermediate';
-}
-
-// ============================================
-// GAME GENERATOR
-// ============================================
-
-function generateArcadeGame(topic, language, difficulty, problems) {
-  const topicLower = topic.toLowerCase();
-
-  if (topicLower.includes('math') || topicLower.match(/[0-9+\-×÷]/)) {
-    return generateMathGame(language, difficulty, problems);
-  } else if (topicLower.includes('vocab') || topicLower.includes('word')) {
-    return generateVocabularyGame(language, difficulty, problems);
-  } else if (topicLower.includes('read') || topicLower.includes('comprehension')) {
-    return generateReadingGame(language, difficulty, problems);
-  } else if (topicLower.includes('science')) {
-    return generateScienceGame(language, difficulty, problems);
-  } else if (topicLower.includes('grammar')) {
-    return generateGrammarGame(language, difficulty, problems);
-  } else if (topicLower.includes('geo') || topicLower.includes('capital')) {
-    return generateGeographyGame(language, difficulty, problems);
-  }
-  
-  return getDefaultGame(language);
-}
-
-// ============================================
-// MATH GAMES - DYNAMIC DIFFICULTY
-// ============================================
-
-function generateMathGame(language, difficulty, problems) {
-  const mathDifficulty = difficulty || analyzeMathDifficulty(problems);
-  
-  const themes = {
-    en: '🚀 MATH BLASTER',
-    es: '🚀 BLASTER MATEMÁTICO',
-    fr: '🚀 BLASTER MATH',
-    de: '🚀 MATHE-BLASTER',
-    ar: '🚀 كاسر الرياضيات'
-  };
-
-  const instructions = {
-    en: 'Match the problems to their answers!',
-    es: '¡Combina los problemas con sus respuestas!',
-    fr: 'Associez les problèmes à leurs réponses!',
-    de: 'Ordnen Sie die Probleme ihren Antworten zu!',
-    ar: '!طابق المشاكل بإجاباتها'
-  };
-
+  // Generate pairs based on topic + difficulty
   let pairs = [];
+  
+  if (topicLower === 'addition') {
+    pairs = generateAdditionPairs(difficulty);
+  } else if (topicLower === 'subtraction') {
+    pairs = generateSubtractionPairs(difficulty);
+  } else if (topicLower === 'multiplication') {
+    pairs = generateMultiplicationPairs(difficulty);
+  } else if (topicLower === 'division') {
+    pairs = generateDivisionPairs(difficulty);
+  } else if (topicLower === 'vocabulary') {
+    pairs = generateVocabularyPairs(difficulty);
+  } else if (topicLower === 'synonym') {
+    pairs = generateSynonymPairs(difficulty);
+  } else if (topicLower === 'antonym') {
+    pairs = generateAntonymPairs(difficulty);
+  } else if (topicLower === 'animal') {
+    pairs = generateAnimalPairs(difficulty);
+  } else if (topicLower === 'color') {
+    pairs = generateColorPairs(difficulty);
+  } else if (topicLower === 'body') {
+    pairs = generateBodyParts(difficulty);
+  } else if (topicLower === 'geography' || topicLower === 'capital') {
+    pairs = generateCapitalPairs(difficulty);
+  } else if (topicLower === 'reading') {
+    pairs = generateReadingPairs(difficulty);
+  } else {
+    pairs = generateDefaultPairs(difficulty);
+  }
 
-  if (mathDifficulty === 'easy') {
-    pairs = [
+  return {
+    theme: themeData.theme,
+    instructions: themeData.instruction,
+    pairs: pairs
+  };
+}
+
+// ============================================
+// THEME GETTER
+// ============================================
+
+function getTheme(topic, difficulty, language) {
+  const themeList = THEME_MAP[topic] || THEME_MAP['vocabulary'];
+  const diffLevel = difficulty === 'easy' ? 'easy' : difficulty === 'hard' ? 'hard' : 'medium';
+  const themeData = themeList.find(t => t.difficulty === diffLevel) || themeList[1];
+  
+  const instruction = language === 'es' ? themeData.es : themeData.en;
+  
+  return {
+    theme: themeData.theme,
+    instruction: instruction
+  };
+}
+
+// ============================================
+// ADDITION - ALWAYS MATH THEME
+// ============================================
+
+function generateAdditionPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
       { left: '2 + 3', right: '5' },
       { left: '4 + 1', right: '5' },
       { left: '3 + 2', right: '5' },
@@ -192,17 +186,8 @@ function generateMathGame(language, difficulty, problems) {
       { left: '2 + 2', right: '4' },
       { left: '3 + 1', right: '4' }
     ];
-  } else if (mathDifficulty === 'intermediate') {
-    pairs = [
-      { left: '12 + 15', right: '27' },
-      { left: '24 + 13', right: '37' },
-      { left: '18 + 22', right: '40' },
-      { left: '31 + 19', right: '50' },
-      { left: '26 + 14', right: '40' },
-      { left: '33 + 17', right: '50' }
-    ];
-  } else if (mathDifficulty === 'advanced') {
-    pairs = [
+  } else if (difficulty === 'hard') {
+    return [
       { left: '147 + 65', right: '212' },
       { left: '284 + 118', right: '402' },
       { left: '356 + 179', right: '535' },
@@ -211,48 +196,133 @@ function generateMathGame(language, difficulty, problems) {
       { left: '645 + 138', right: '783' }
     ];
   } else {
-    pairs = [
-      { left: '1247 + 853', right: '2100' },
-      { left: '2584 + 1416', right: '4000' },
-      { left: '3672 + 2128', right: '5800' },
-      { left: '4891 + 3209', right: '8100' },
-      { left: '5234 + 2766', right: '8000' },
-      { left: '6145 + 2855', right: '9000' }
+    // medium
+    return [
+      { left: '12 + 15', right: '27' },
+      { left: '24 + 13', right: '37' },
+      { left: '18 + 22', right: '40' },
+      { left: '31 + 19', right: '50' },
+      { left: '26 + 14', right: '40' },
+      { left: '33 + 17', right: '50' }
     ];
   }
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
 }
 
 // ============================================
-// VOCABULARY GAMES - DYNAMIC DIFFICULTY
+// SUBTRACTION - ALWAYS MATH THEME
 // ============================================
 
-function generateVocabularyGame(language, difficulty, problems) {
-  const vocabDifficulty = difficulty || analyzeVocabDifficulty(problems);
+function generateSubtractionPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
+      { left: '5 - 2', right: '3' },
+      { left: '6 - 3', right: '3' },
+      { left: '4 - 1', right: '3' },
+      { left: '7 - 2', right: '5' },
+      { left: '8 - 3', right: '5' },
+      { left: '5 - 1', right: '4' }
+    ];
+  } else if (difficulty === 'hard') {
+    return [
+      { left: '347 - 125', right: '222' },
+      { left: '543 - 218', right: '325' },
+      { left: '762 - 349', right: '413' },
+      { left: '891 - 276', right: '615' },
+      { left: '654 - 327', right: '327' },
+      { left: '745 - 238', right: '507' }
+    ];
+  } else {
+    // medium
+    return [
+      { left: '25 - 12', right: '13' },
+      { left: '37 - 15', right: '22' },
+      { left: '48 - 23', right: '25' },
+      { left: '56 - 24', right: '32' },
+      { left: '63 - 31', right: '32' },
+      { left: '42 - 18', right: '24' }
+    ];
+  }
+}
 
-  const themes = {
-    en: '🦝 WORD MASTER',
-    es: '🦝 MAESTRO DE PALABRAS',
-    fr: '🦝 MAÎTRE DES MOTS',
-    ar: '🦝 معلم الكلمات'
-  };
+// ============================================
+// MULTIPLICATION - ALWAYS MATH THEME
+// ============================================
 
-  const instructions = {
-    en: 'Match words to their meanings!',
-    es: '¡Combina palabras con sus significados!',
-    fr: 'Associez les mots à leurs sens!',
-    ar: '!طابق الكلمات بمعانيها'
-  };
+function generateMultiplicationPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
+      { left: '2 × 3', right: '6' },
+      { left: '4 × 2', right: '8' },
+      { left: '3 × 3', right: '9' },
+      { left: '5 × 2', right: '10' },
+      { left: '2 × 4', right: '8' },
+      { left: '3 × 2', right: '6' }
+    ];
+  } else if (difficulty === 'hard') {
+    return [
+      { left: '24 × 15', right: '360' },
+      { left: '32 × 18', right: '576' },
+      { left: '27 × 14', right: '378' },
+      { left: '41 × 23', right: '943' },
+      { left: '35 × 19', right: '665' },
+      { left: '29 × 16', right: '464' }
+    ];
+  } else {
+    // medium
+    return [
+      { left: '12 × 3', right: '36' },
+      { left: '15 × 2', right: '30' },
+      { left: '14 × 4', right: '56' },
+      { left: '11 × 5', right: '55' },
+      { left: '13 × 2', right: '26' },
+      { left: '16 × 3', right: '48' }
+    ];
+  }
+}
 
-  let pairs = [];
+// ============================================
+// DIVISION - ALWAYS MATH THEME
+// ============================================
 
-  if (vocabDifficulty === 'easy') {
-    pairs = [
+function generateDivisionPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
+      { left: '6 ÷ 2', right: '3' },
+      { left: '8 ÷ 2', right: '4' },
+      { left: '9 ÷ 3', right: '3' },
+      { left: '10 ÷ 2', right: '5' },
+      { left: '12 ÷ 3', right: '4' },
+      { left: '15 ÷ 3', right: '5' }
+    ];
+  } else if (difficulty === 'hard') {
+    return [
+      { left: '360 ÷ 15', right: '24' },
+      { left: '576 ÷ 18', right: '32' },
+      { left: '378 ÷ 14', right: '27' },
+      { left: '943 ÷ 23', right: '41' },
+      { left: '665 ÷ 19', right: '35' },
+      { left: '464 ÷ 16', right: '29' }
+    ];
+  } else {
+    // medium
+    return [
+      { left: '36 ÷ 3', right: '12' },
+      { left: '30 ÷ 2', right: '15' },
+      { left: '56 ÷ 4', right: '14' },
+      { left: '55 ÷ 5', right: '11' },
+      { left: '26 ÷ 2', right: '13' },
+      { left: '48 ÷ 3', right: '16' }
+    ];
+  }
+}
+
+// ============================================
+// VOCABULARY - NON-MATH THEME
+// ============================================
+
+function generateVocabularyPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
       { left: 'happy', right: 'joyful' },
       { left: 'big', right: 'large' },
       { left: 'fast', right: 'quick' },
@@ -260,278 +330,155 @@ function generateVocabularyGame(language, difficulty, problems) {
       { left: 'loud', right: 'noisy' },
       { left: 'small', right: 'tiny' }
     ];
-  } else if (vocabDifficulty === 'intermediate') {
-    pairs = [
-      { left: 'benevolent', right: 'kind and generous' },
-      { left: 'meticulous', right: 'very careful' },
-      { left: 'eloquent', right: 'fluent speaker' },
-      { left: 'pragmatic', right: 'practical approach' },
-      { left: 'ambiguous', right: 'unclear meaning' },
-      { left: 'tenacious', right: 'persistent' }
-    ];
-  } else if (vocabDifficulty === 'advanced') {
-    pairs = [
-      { left: 'ephemeral', right: 'lasting briefly' },
-      { left: 'ubiquitous', right: 'everywhere present' },
+  } else if (difficulty === 'hard') {
+    return [
+      { left: 'ephemeral', right: 'fleeting' },
+      { left: 'ubiquitous', right: 'everywhere' },
       { left: 'perspicacious', right: 'keen insight' },
       { left: 'sanguine', right: 'optimistic' },
       { left: 'obfuscate', right: 'make unclear' },
-      { left: 'serendipity', right: 'fortunate accident' }
+      { left: 'serendipity', right: 'fortunate chance' }
     ];
   } else {
-    pairs = [
-      { left: 'sesquipedalian', right: 'lengthy word' },
-      { left: 'petrichor', right: 'rain smell' },
-      { left: 'onomatopoeia', right: 'sound imitation' },
-      { left: 'defenestration', right: 'window throwing' },
-      { left: 'gobbledygook', right: 'confusing language' },
-      { left: 'lollygag', right: 'waste time' }
+    // medium
+    return [
+      { left: 'benevolent', right: 'kind' },
+      { left: 'meticulous', right: 'careful' },
+      { left: 'eloquent', right: 'articulate' },
+      { left: 'pragmatic', right: 'practical' },
+      { left: 'ambiguous', right: 'unclear' },
+      { left: 'tenacious', right: 'persistent' }
     ];
   }
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
 }
 
 // ============================================
-// READING COMPREHENSION GAMES
+// SYNONYM - NON-MATH THEME
 // ============================================
 
-function generateReadingGame(language, difficulty, problems) {
-  const readingDifficulty = difficulty || analyzeReadingDifficulty(problems);
+function generateSynonymPairs(difficulty) {
+  return [
+    { left: 'tiny', right: 'small' },
+    { left: 'joy', right: 'happiness' },
+    { left: 'furious', right: 'angry' },
+    { left: 'chilly', right: 'cold' },
+    { left: 'damp', right: 'wet' },
+    { left: 'brilliant', right: 'smart' }
+  ];
+}
 
-  const themes = {
-    en: '📚 READING QUEST',
-    es: '📚 BÚSQUEDA DE LECTURA',
-    fr: '📚 QUÊTE DE LECTURE',
-    ar: '📚 مغامرة القراءة'
-  };
+// ============================================
+// ANTONYM - NON-MATH THEME
+// ============================================
 
-  const instructions = {
-    en: 'Match passages to their meanings!',
-    es: '¡Combina pasajes con sus significados!',
-    fr: 'Associez les passages à leurs sens!',
-    ar: '!طابق النصوص بمعانيها'
-  };
+function generateAntonymPairs(difficulty) {
+  return [
+    { left: 'big', right: 'small' },
+    { left: 'hot', right: 'cold' },
+    { left: 'happy', right: 'sad' },
+    { left: 'fast', right: 'slow' },
+    { left: 'light', right: 'dark' },
+    { left: 'good', right: 'bad' }
+  ];
+}
 
-  let pairs = [];
+// ============================================
+// ANIMAL - NON-MATH THEME
+// ============================================
 
-  if (readingDifficulty === 'easy') {
-    pairs = [
-      { left: 'The cat sat on the mat', right: 'Cat is sitting' },
-      { left: 'It is raining outside', right: 'Wet weather' },
+function generateAnimalPairs(difficulty) {
+  return [
+    { left: 'Dog', right: 'Barks' },
+    { left: 'Cat', right: 'Meows' },
+    { left: 'Fish', right: 'Swims' },
+    { left: 'Bird', right: 'Flies' },
+    { left: 'Lion', right: 'Roars' },
+    { left: 'Kangaroo', right: 'Hops' }
+  ];
+}
+
+// ============================================
+// COLOR - NON-MATH THEME
+// ============================================
+
+function generateColorPairs(difficulty) {
+  return [
+    { left: '🔴 Red', right: 'Fire' },
+    { left: '🔵 Blue', right: 'Sky' },
+    { left: '🟡 Yellow', right: 'Sun' },
+    { left: '🟢 Green', right: 'Grass' },
+    { left: '⚫ Black', right: 'Night' },
+    { left: '⚪ White', right: 'Snow' }
+  ];
+}
+
+// ============================================
+// BODY PARTS - NON-MATH THEME
+// ============================================
+
+function generateBodyParts(difficulty) {
+  return [
+    { left: 'Head', right: 'Think' },
+    { left: 'Eyes', right: 'See' },
+    { left: 'Ears', right: 'Hear' },
+    { left: 'Nose', right: 'Smell' },
+    { left: 'Hands', right: 'Grab' },
+    { left: 'Feet', right: 'Walk' }
+  ];
+}
+
+// ============================================
+// GEOGRAPHY/CAPITALS - NON-MATH THEME
+// ============================================
+
+function generateCapitalPairs(difficulty) {
+  return [
+    { left: 'France', right: 'Paris' },
+    { left: 'Spain', right: 'Madrid' },
+    { left: 'Japan', right: 'Tokyo' },
+    { left: 'Brazil', right: 'Brasília' },
+    { left: 'Mexico', right: 'Mexico City' },
+    { left: 'Italy', right: 'Rome' }
+  ];
+}
+
+// ============================================
+// READING - NON-MATH THEME
+// ============================================
+
+function generateReadingPairs(difficulty) {
+  if (difficulty === 'easy') {
+    return [
+      { left: 'The cat sat', right: 'Cat is sitting' },
+      { left: 'It is raining', right: 'Wet weather' },
       { left: 'She likes to play', right: 'Enjoys playing' },
       { left: 'The sun is bright', right: 'Sunny day' },
-      { left: 'Dogs are fun', right: 'Puppies are happy' },
+      { left: 'Dogs are fun', right: 'Happy animals' },
       { left: 'I like ice cream', right: 'Likes dessert' }
     ];
-  } else if (readingDifficulty === 'intermediate') {
-    pairs = [
-      { left: 'The protagonist embarked on a grand adventure', right: 'Hero starts journey' },
-      { left: 'Despite the obstacles, she persevered', right: 'Continued despite difficulty' },
-      { left: 'The atmosphere was tense and foreboding', right: 'Scary mood' },
-      { left: 'He contemplated the mysterious artifact', right: 'Thought about strange object' },
-      { left: 'The revelation shocked everyone', right: 'Unexpected discovery' },
+  } else {
+    return [
+      { left: 'The protagonist embarked', right: 'Hero started journey' },
+      { left: 'Despite obstacles, persevered', right: 'Continued despite difficulty' },
+      { left: 'The atmosphere was tense', right: 'Scary mood' },
+      { left: 'He contemplated', right: 'Thought deeply' },
+      { left: 'The revelation shocked', right: 'Unexpected discovery' },
       { left: 'Time seemed to stand still', right: 'Moment felt long' }
     ];
-  } else {
-    pairs = [
-      { left: 'The author employs metaphorical language to convey existential dread', right: 'Uses symbols for fear' },
-      { left: 'The narrative demonstrates an intricate examination of moral ambiguity', right: 'Complex ethics shown' },
-      { left: 'Beneath the surface lies a profound commentary on societal constructs', right: 'Deep social critique' },
-      { left: 'The denouement subverts conventional narrative expectations', right: 'Ending surprises reader' },
-      { left: 'Juxtaposition of contrasting imagery creates thematic resonance', right: 'Opposites reinforce meaning' },
-      { left: 'The protagonist\s internal conflict epitomizes the fundamental human struggle', right: 'Character\s inner turmoil universal' }
-    ];
   }
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
 }
 
 // ============================================
-// SCIENCE GAMES
+// DEFAULT - NON-MATH THEME
 // ============================================
 
-function generateScienceGame(language, difficulty, problems) {
-  const scienceDifficulty = difficulty || analyzeScienceDifficulty(problems);
-
-  const themes = {
-    en: '🔬 SCIENCE LAB',
-    es: '🔬 LABORATORIO CIENTÍFICO',
-    fr: '🔬 LAB SCIENCE',
-    ar: '🔬 مختبر العلوم'
-  };
-
-  const instructions = {
-    en: 'Match science terms to definitions!',
-    es: '¡Combina términos científicos con definiciones!',
-    fr: 'Associez les termes scientifiques aux définitions!',
-    ar: '!طابق المصطلحات العلمية بالتعاريف'
-  };
-
-  let pairs = [];
-
-  if (scienceDifficulty === 'easy') {
-    pairs = [
-      { left: 'Sun', right: 'Star in sky' },
-      { left: 'Tree', right: 'Has leaves' },
-      { left: 'Water', right: 'Liquid H2O' },
-      { left: 'Animal', right: 'Living creature' },
-      { left: 'Plant', right: 'Grows from seed' },
-      { left: 'Rock', right: 'Stone on ground' }
-    ];
-  } else if (scienceDifficulty === 'intermediate') {
-    pairs = [
-      { left: 'Photosynthesis', right: 'Plants make food' },
-      { left: 'Mitochondria', right: 'Cell powerhouse' },
-      { left: 'Gravity', right: 'Pulls objects down' },
-      { left: 'Ecosystem', right: 'Living community' },
-      { left: 'Molecule', right: 'Atoms bonded' },
-      { left: 'Climate', right: 'Long-term weather' }
-    ];
-  } else {
-    pairs = [
-      { left: 'Osmosis', right: 'Water membrane movement' },
-      { left: 'Thermodynamics', right: 'Heat energy laws' },
-      { left: 'Catalysis', right: 'Reaction acceleration' },
-      { left: 'Homeostasis', right: 'Internal balance' },
-      { left: 'Entropy', right: 'Disorder increase' },
-      { left: 'Quantum entanglement', right: 'Particle connection' }
-    ];
-  }
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
-}
-
-// ============================================
-// GRAMMAR GAMES
-// ============================================
-
-function generateGrammarGame(language, difficulty, problems) {
-  const grammarDifficulty = difficulty || analyzeGrammarDifficulty(problems);
-
-  const themes = {
-    en: '✏️ GRAMMAR MASTER',
-    es: '✏️ MAESTRO DE GRAMÁTICA',
-    fr: '✏️ MAÎTRE DE GRAMMAIRE',
-    ar: '✏️ معلم القواعد'
-  };
-
-  const instructions = {
-    en: 'Match incorrect to correct!',
-    es: '¡Combina incorrecto con correcto!',
-    fr: 'Associez l\'incorrect au correct!',
-    ar: '!طابق الخطأ بالصحيح'
-  };
-
-  let pairs = [];
-
-  if (grammarDifficulty === 'easy') {
-    pairs = [
-      { left: 'She go', right: 'She goes' },
-      { left: 'I is', right: 'I am' },
-      { left: 'They was', right: 'They were' },
-      { left: 'He have', right: 'He has' },
-      { left: 'You is', right: 'You are' },
-      { left: 'It are', right: 'It is' }
-    ];
-  } else if (grammarDifficulty === 'intermediate') {
-    pairs = [
-      { left: 'She don\'t like it', right: 'She doesn\'t like it' },
-      { left: 'He were running', right: 'He was running' },
-      { left: 'They has gone', right: 'They have gone' },
-      { left: 'I seen it', right: 'I saw it' },
-      { left: 'She go yesterday', right: 'She went yesterday' },
-      { left: 'We has finished', right: 'We have finished' }
-    ];
-  } else {
-    pairs = [
-      { left: 'If I was you', right: 'If I were you' },
-      { left: 'He should of gone', right: 'He should have gone' },
-      { left: 'Between you and I', right: 'Between you and me' },
-      { left: 'Whom is calling?', right: 'Who is calling?' },
-      { left: 'Its a beautiful day', right: 'It\'s a beautiful day' },
-      { left: 'The data are complete', right: 'The data is complete' }
-    ];
-  }
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
-}
-
-// ============================================
-// GEOGRAPHY GAMES
-// ============================================
-
-function generateGeographyGame(language, difficulty, problems) {
-  const themes = {
-    en: '🗺️ WORLD EXPLORER',
-    es: '🗺️ EXPLORADOR MUNDIAL',
-    fr: '🗺️ EXPLORATEUR MONDIAL',
-    ar: '🗺️ مستكشف العالم'
-  };
-
-  const instructions = {
-    en: 'Match countries to capitals!',
-    es: '¡Combina países con capitales!',
-    fr: 'Associez les pays aux capitales!',
-    ar: '!طابق الدول بالعواصم'
-  };
-
-  const pairs = [
-    { left: '🇫🇷 France', right: 'Paris 🗼' },
-    { left: '🇪🇸 Spain', right: 'Madrid 🎭' },
-    { left: '🇯🇵 Japan', right: 'Tokyo 🎌' },
-    { left: '🇧🇷 Brazil', right: 'Brasília ⚽' },
-    { left: '🇲🇽 Mexico', right: 'Mexico City 🌮' },
-    { left: '🇮🇹 Italy', right: 'Rome 🍝' }
+function generateDefaultPairs(difficulty) {
+  return [
+    { left: 'Play', right: 'Fun' },
+    { left: 'Learn', right: 'Smart' },
+    { left: 'Win', right: 'Champion' },
+    { left: 'Try', right: 'Awesome' },
+    { left: 'Success', right: 'Victory' },
+    { left: 'Challenge', right: 'Goal' }
   ];
-
-  return {
-    theme: themes[language] || themes['en'],
-    instructions: instructions[language] || instructions['en'],
-    pairs: pairs
-  };
-}
-
-// ============================================
-// DEFAULT GAME
-// ============================================
-
-function getDefaultGame(language) {
-  const games = {
-    en: {
-      theme: '🎮 WORD WARRIOR',
-      instructions: 'Get ready! Connect left to right!',
-      pairs: [
-        { left: '🎮 PLAY', right: 'Fun! 🎉' },
-        { left: '🎮 LEARN', right: 'Smart! 🧠' },
-        { left: '🎮 WIN', right: 'Champion! 👑' },
-        { left: '🎮 TRY', right: 'Awesome! ⭐' }
-      ]
-    },
-    es: {
-      theme: '🎮 GUERRERO DE PALABRAS',
-      instructions: '¡Listo! ¡Conecta izquierda a derecha!',
-      pairs: [
-        { left: '🎮 JUGAR', right: '¡Diversión! 🎉' },
-        { left: '🎮 APRENDER', right: '¡Inteligente! 🧠' }
-      ]
-    }
-  };
-  return games[language] || games['en'];
 }
