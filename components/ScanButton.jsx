@@ -6,42 +6,74 @@ export default function ScanButton() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  function openCamera() {
-    // Reset input value to allow re-selecting same file
+  function openFileInput() {
     if (inputRef.current) {
+      // CRITICAL: Reset input value so same file can be selected twice
       inputRef.current.value = "";
       inputRef.current.click();
     }
   }
 
-  async function handleImageCapture(e) {
-    const file = e.target.files?.[0];
-
-    if (!file) {
-      console.log("❌ No file selected");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file");
-      return;
-    }
-
-    console.log("✅ Image captured:", file.name);
-    console.log("✅ File size:", (file.size / 1024 / 1024).toFixed(2), "MB");
-
-    setLoading(true);
-
+  async function handleFileSelected(e) {
     try {
+      const files = e.target.files;
+      
+      if (!files || files.length === 0) {
+        console.log("❌ No files selected - user cancelled");
+        return;
+      }
+
+      const file = files[0];
+
+      // Verify file exists and has size
+      if (!file) {
+        console.error("❌ File is null");
+        alert("File error: File is null");
+        return;
+      }
+
+      if (file.size === 0) {
+        console.error("❌ File size is 0");
+        alert("File error: Empty file (0 bytes)");
+        return;
+      }
+
+      if (file.size === undefined) {
+        console.error("❌ File size is undefined");
+        alert("File error: Cannot determine file size");
+        return;
+      }
+
+      if (!file.type) {
+        console.error("❌ File type is undefined");
+        alert("File error: Cannot determine file type");
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        console.error("❌ Not an image:", file.type);
+        alert("Please select an image file");
+        return;
+      }
+
+      console.log("✅ File validation passed");
+      console.log("   Name:", file.name);
+      console.log("   Type:", file.type);
+      console.log("   Size:", (file.size / 1024 / 1024).toFixed(2), "MB");
+
+      setLoading(true);
+
+      // Create FormData
       const formData = new FormData();
       formData.append("file", file);
 
-      console.log("🤖 Uploading to /api/scan...");
+      console.log("📤 Sending to /api/scan");
 
       const lang = localStorage.getItem("lang") || "en";
       const parentMode = localStorage.getItem("parentMode") === "true";
 
-      const res = await fetch("/api/scan", {
+      // Send to backend
+      const response = await fetch("/api/scan", {
         method: "POST",
         body: formData,
         headers: {
@@ -50,30 +82,34 @@ export default function ScanButton() {
         },
       });
 
-      const data = await res.json();
+      console.log("📥 Response status:", response.status);
 
-      console.log("📥 API Response:", data);
+      const result = await response.json();
 
-      if (!res.ok) {
-        console.error("❌ API Error:", data);
-        alert("Error: " + (data.error || "Failed to process image"));
+      if (!response.ok) {
+        console.error("❌ API error:", result);
+        alert("Error: " + (result.error || "Processing failed"));
         setLoading(false);
         return;
       }
 
-      if (!data.success) {
-        console.error("❌ API returned failure:", data);
-        alert("Error: " + data.error);
+      if (!result.success) {
+        console.error("❌ API failure:", result);
+        alert("Error: " + (result.error || "Processing failed"));
         setLoading(false);
         return;
       }
 
-      console.log("✅ Success! Redirecting to results...");
+      console.log("✅ Processing successful");
+      console.log("   Saving results...");
 
-      localStorage.setItem("homeworkResult", JSON.stringify(data));
+      // Save and redirect
+      localStorage.setItem("homeworkResult", JSON.stringify(result));
+      console.log("✅ Redirecting to results...");
       router.push("/results");
+
     } catch (error) {
-      console.error("❌ Upload error:", error);
+      console.error("❌ Exception:", error.message);
       alert("Error: " + error.message);
       setLoading(false);
     }
@@ -82,7 +118,7 @@ export default function ScanButton() {
   return (
     <>
       <button
-        onClick={openCamera}
+        onClick={openFileInput}
         disabled={loading}
         className="
           px-12 py-5
@@ -104,26 +140,34 @@ export default function ScanButton() {
         {loading ? "⏳ Processing..." : "Homework Scan"}
       </button>
 
-      {/* MOBILE CAMERA FIX: Use position absolute instead of display:none */}
-      {/* This keeps the input in the DOM and accessible to mobile browsers */}
+      {/* 
+        NUCLEAR FIX:
+        - Removed capture="environment" (causes empty files on some Android devices)
+        - Using accept="image/*" only (browser handles camera/gallery)
+        - Input NOT hidden (stays in DOM for proper mobile browser handling)
+        - Using tabIndex="-1" to keep it out of tab order
+        - Using pointer-events: none to prevent accidental clicks
+        - Input must be accessible to mobile browsers
+      */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
-        onChange={handleImageCapture}
+        onChange={handleFileSelected}
         style={{
-          position: "absolute",
-          top: "-9999px",
-          left: "-9999px",
-          width: "1px",
-          height: "1px",
+          position: "fixed",
+          top: "0",
+          left: "0",
+          width: "0",
+          height: "0",
+          padding: "0",
+          border: "0",
           opacity: "0",
           visibility: "hidden",
           pointerEvents: "none",
         }}
-        aria-hidden="true"
         tabIndex="-1"
+        aria-hidden="true"
       />
     </>
   );
