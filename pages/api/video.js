@@ -1,13 +1,15 @@
+// video.js - UPDATED
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic } = req.query;
+  const { topic, language = 'en' } = req.query;
 
   console.log(`\n${'='.repeat(70)}`);
   console.log(`🎬 === VIDEO SEARCH ===`);
   console.log(`📌 Topic: ${topic}`);
+  console.log(`🌐 Language: ${language}`);
   console.log(`${'='.repeat(70)}`);
 
   if (!topic) {
@@ -22,18 +24,28 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
+  const languageSuffixes = {
+    'fr': 'enfants français',
+    'es': 'niños español',
+    'de': 'kinder deutsch',
+    'ar': 'أطفال عربي',
+    'en': 'kids'
+  };
+
+  const langSuffix = languageSuffixes[language] || 'kids';
+
   try {
-    // Try 4 different search strategies, from specific to broad
     const searchQueries = [
-      { query: `${topic} animated kids`, name: 'Animated Kids' },
-      { query: `${topic} kids learning`, name: 'Kids Learning' },
+      { query: `${topic} animated ${langSuffix}`, name: 'Animated Kids' },
+      { query: `${topic} ${langSuffix} learning`, name: 'Kids Learning' },
+      { query: `${topic} ${langSuffix}`, name: 'Language-specific' },
       { query: `${topic} educational`, name: 'Educational' },
       { query: topic, name: 'Any Topic' }
     ];
 
     for (const { query, name } of searchQueries) {
       console.log(`\n🔍 ATTEMPT: ${name}`);
-      console.log(`📝 Query: "${query}"`);
+      console.log(`🔍 Query: "${query}"`);
 
       const video = await searchAndGetVideo(query, youtubeApiKey);
       
@@ -53,7 +65,6 @@ export default async function handler(req, res) {
       console.log(`⚠️ No video found`);
     }
 
-    // All attempts failed, use fallback
     console.log(`\n❌ All searches exhausted, using fallback`);
     return returnFallback(res);
 
@@ -63,19 +74,14 @@ export default async function handler(req, res) {
   }
 }
 
-/**
- * Search YouTube and return first valid video
- * Fast and broad - accepts any embeddable video under 10 minutes
- */
 async function searchAndGetVideo(query, apiKey) {
   try {
-    // Search
     const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
     searchUrl.searchParams.append('part', 'snippet');
     searchUrl.searchParams.append('q', query);
     searchUrl.searchParams.append('type', 'video');
     searchUrl.searchParams.append('key', apiKey);
-    searchUrl.searchParams.append('maxResults', '25'); // Smaller for faster response
+    searchUrl.searchParams.append('maxResults', '25');
     searchUrl.searchParams.append('order', 'relevance');
 
     const searchResponse = await fetch(searchUrl.toString());
@@ -93,7 +99,6 @@ async function searchAndGetVideo(query, apiKey) {
 
     console.log(`Found ${searchData.items.length} videos`);
 
-    // Get video details for ALL videos
     const videoIds = searchData.items.map(item => item.id.videoId).join(',');
 
     const detailsUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
@@ -122,7 +127,6 @@ async function searchAndGetVideo(query, apiKey) {
       };
     });
 
-    // Find FIRST embeddable video under 10 minutes
     for (let i = 0; i < searchData.items.length; i++) {
       const item = searchData.items[i];
       const videoId = item.id.videoId;
@@ -130,35 +134,28 @@ async function searchAndGetVideo(query, apiKey) {
 
       if (!details) continue;
 
-      // Check if embeddable
       if (details.embeddable !== true) {
         console.log(`  ❌ Not embeddable`);
         continue;
       }
 
-      // Check region restrictions
       if (details.regionRestriction) {
         console.log(`  ❌ Region restricted`);
         continue;
       }
 
-      // Check licensed content
       if (details.licensedContent === true) {
         console.log(`  ❌ Licensed content only`);
         continue;
       }
 
-      // Check duration: must be under 10 minutes (600 seconds)
       const durationSeconds = parseDuration(details.duration);
       if (durationSeconds < 5 || durationSeconds > 600) {
         console.log(`  ❌ Duration ${durationSeconds}s out of range`);
         continue;
       }
 
-      // This video is VALID!
       let score = 100;
-
-      // Boost score for quality
       if (details.viewCount > 100000) score += 50;
       if (details.likeCount > 1000) score += 25;
 
@@ -186,10 +183,6 @@ async function searchAndGetVideo(query, apiKey) {
   }
 }
 
-/**
- * Parse ISO 8601 duration
- * PT5M30S = 330 seconds
- */
 function parseDuration(duration) {
   const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
   const matches = duration.match(regex);
@@ -201,9 +194,6 @@ function parseDuration(duration) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-/**
- * Fallback video
- */
 function returnFallback(res) {
   console.log(`🎬 Using fallback`);
   console.log(`${'='.repeat(70)}\n`);

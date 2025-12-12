@@ -1,12 +1,80 @@
+// exercise.js - UPDATED
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
 export const config = { ssr: false };
 
+const translations = {
+  en: {
+    loading: 'Loading game...',
+    fetchError: 'Failed to load game',
+    gameNotFound: 'Game not found',
+    goHome: '🏠 Go Home',
+    awesome: 'Awesome!',
+    youGot: 'You got',
+    outOf: 'out of',
+    correct: 'correct!',
+    perfect: 'PERFECT! 🏆',
+    great: 'Great job! ⭐',
+    goodTry: 'Good try! Keep practicing! 💪',
+    playAgain: '🔄 Play Again',
+    home: '🏠 Home',
+    dragFrom: '🟦 Drag from here',
+    dropHere: '🟩 Drop here',
+    checkAnswers: '✅ Check Answers',
+    matchAll: 'Match all items!',
+    theme: 'Theme',
+    topic: 'Topic'
+  },
+  fr: {
+    loading: 'Chargement du jeu...',
+    fetchError: 'Impossible de charger le jeu',
+    gameNotFound: 'Jeu non trouvé',
+    goHome: '🏠 Accueil',
+    awesome: 'Super!',
+    youGot: 'Vous avez obtenu',
+    outOf: 'sur',
+    correct: 'correct!',
+    perfect: 'PARFAIT! 🏆',
+    great: 'Excellent! ⭐',
+    goodTry: 'Bon essai! Continue de pratiquer! 💪',
+    playAgain: '🔄 Rejouer',
+    home: '🏠 Accueil',
+    dragFrom: '🟦 Faites glisser d\'ici',
+    dropHere: '🟩 Déposez ici',
+    checkAnswers: '✅ Vérifier les réponses',
+    matchAll: 'Associez tous les éléments!',
+    theme: 'Thème',
+    topic: 'Sujet'
+  },
+  es: {
+    loading: 'Cargando juego...',
+    fetchError: 'Error al cargar el juego',
+    gameNotFound: 'Juego no encontrado',
+    goHome: '🏠 Inicio',
+    awesome: '¡Increíble!',
+    youGot: 'Obtuviste',
+    outOf: 'de',
+    correct: '¡correcto!',
+    perfect: '¡PERFECTO! 🏆',
+    great: '¡Excelente! ⭐',
+    goodTry: '¡Buen intento! ¡Sigue practicando! 💪',
+    playAgain: '🔄 Jugar de nuevo',
+    home: '🏠 Inicio',
+    dragFrom: '🟦 Arrastra desde aquí',
+    dropHere: '🟩 Suelta aquí',
+    checkAnswers: '✅ Verificar respuestas',
+    matchAll: '¡Empareja todos los elementos!',
+    theme: 'Tema',
+    topic: 'Tema'
+  }
+};
+
 export default function Exercise() {
   const router = useRouter();
   const { topic = 'addition', language = 'en' } = router.query;
+  const t = translations[language] || translations.en;
 
   const [loading, setLoading] = useState(true);
   const [game, setGame] = useState(null);
@@ -15,7 +83,6 @@ export default function Exercise() {
   const [score, setScore] = useState(null);
   const [error, setError] = useState(null);
 
-  // Fetch game on mount or when topic/language changes
   useEffect(() => {
     if (!topic || !language) return;
 
@@ -26,7 +93,6 @@ export default function Exercise() {
         setMatches({});
         setDraggedItem(null);
 
-        // Get homework problems from localStorage for difficulty detection
         const saved = localStorage.getItem('homeworkResult');
         const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
 
@@ -35,7 +101,7 @@ export default function Exercise() {
         );
 
         if (!res.ok) {
-          throw new Error('Failed to load game');
+          throw new Error(t.fetchError);
         }
 
         const data = await res.json();
@@ -43,7 +109,7 @@ export default function Exercise() {
         setError(null);
       } catch (err) {
         console.error('Game fetch error:', err);
-        setError('Failed to load game. Please try again.');
+        setError(t.fetchError);
         setGame(null);
       } finally {
         setLoading(false);
@@ -51,9 +117,8 @@ export default function Exercise() {
     }
 
     fetchGame();
-  }, [topic, language]);
+  }, [topic, language, t]);
 
-  // Drag handlers
   function handleDragStart(e, pair) {
     setDraggedItem(pair);
     e.dataTransfer.effectAllowed = 'move';
@@ -77,13 +142,11 @@ export default function Exercise() {
     setMatches(newMatches);
     setDraggedItem(null);
 
-    // Auto-validate if all items matched
     if (Object.keys(newMatches).length === game.pairs.length) {
       validateMatches(newMatches);
     }
   }
 
-  // Validation logic
   function validateMatches(matchesState) {
     let correct = 0;
 
@@ -100,48 +163,43 @@ export default function Exercise() {
     });
   }
 
-  // Manual check (in case user wants to submit before all matched)
   function handleCheckAnswers() {
     if (Object.keys(matches).length < game.pairs.length) {
-      alert(`Match all items! (${Object.keys(matches).length}/${game.pairs.length})`);
+      alert(`${t.matchAll} (${Object.keys(matches).length}/${game.pairs.length})`);
       return;
     }
     validateMatches(matches);
   }
 
-  // Play again
   function handlePlayAgain() {
     setMatches({});
     setScore(null);
     setDraggedItem(null);
-    // Re-fetch same game
     const currentTopic = router.query.topic || 'addition';
     const currentLanguage = router.query.language || 'en';
     router.push(`/exercise?topic=${currentTopic}&language=${currentLanguage}`);
   }
 
-  // Loading state
   if (loading) {
     return (
       <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <p className="text-2xl font-bold text-white">Loading game...</p>
+          <p className="text-2xl font-bold text-white">{t.loading}</p>
         </div>
       </div>
     );
   }
 
-  // Error state
   if (error || !game) {
     return (
       <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">❌</div>
-          <p className="text-2xl font-bold text-white mb-6">{error || 'Game not found'}</p>
+          <p className="text-2xl font-bold text-white mb-6">{error || t.gameNotFound}</p>
           <Link href="/">
             <button className="px-8 py-4 bg-yellow-400 text-black font-bold rounded-xl text-lg hover:bg-yellow-500 transition-all">
-              🏠 Go Home
+              {t.goHome}
             </button>
           </Link>
         </div>
@@ -149,24 +207,23 @@ export default function Exercise() {
     );
   }
 
-  // Success state
   if (score) {
     return (
       <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="text-8xl mb-6 animate-bounce">🎉</div>
-          <h2 className="text-4xl font-bold text-yellow-400 mb-4">Awesome!</h2>
+          <h2 className="text-4xl font-bold text-yellow-400 mb-4">{t.awesome}</h2>
           <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl p-8 mb-8 text-white">
             <p className="text-xl font-bold mb-4">
-              You got <span className="text-3xl">{score.correct}</span> out of{' '}
-              <span className="text-3xl">{score.total}</span> correct!
+              {t.youGot} <span className="text-3xl">{score.correct}</span> {t.outOf}{' '}
+              <span className="text-3xl">{score.total}</span> {t.correct}
             </p>
             <div className="text-6xl font-bold mb-4">{score.percentage}%</div>
-            {score.percentage === 100 && <p className="text-lg">PERFECT! 🏆</p>}
+            {score.percentage === 100 && <p className="text-lg">{t.perfect}</p>}
             {score.percentage >= 80 && score.percentage < 100 && (
-              <p className="text-lg">Great job! 🌟</p>
+              <p className="text-lg">{t.great}</p>
             )}
-            {score.percentage < 80 && <p className="text-lg">Good try! Keep practicing! 💪</p>}
+            {score.percentage < 80 && <p className="text-lg">{t.goodTry}</p>}
           </div>
 
           <div className="flex gap-4 flex-col sm:flex-row justify-center">
@@ -174,11 +231,11 @@ export default function Exercise() {
               onClick={handlePlayAgain}
               className="px-8 py-4 bg-yellow-400 text-black font-bold rounded-xl text-lg hover:bg-yellow-500 transition-all flex-1"
             >
-              🔄 Play Again
+              {t.playAgain}
             </button>
             <Link href="/" className="flex-1">
               <button className="w-full px-8 py-4 bg-white text-blue-900 font-bold rounded-xl text-lg hover:bg-gray-100 transition-all">
-                🏠 Home
+                {t.home}
               </button>
             </Link>
           </div>
@@ -187,11 +244,9 @@ export default function Exercise() {
     );
   }
 
-  // Game state
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black p-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8 mt-6">
           <h1 className="text-5xl font-bold text-yellow-400 mb-3 drop-shadow-lg">
             {game.theme}
@@ -199,11 +254,9 @@ export default function Exercise() {
           <p className="text-xl text-gray-300">{game.instructions}</p>
         </div>
 
-        {/* Main game container */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {/* LEFT COLUMN - Draggable items */}
           <div>
-            <h3 className="text-lg font-bold text-yellow-400 mb-4">📍 Drag from here</h3>
+            <h3 className="text-lg font-bold text-yellow-400 mb-4">{t.dragFrom}</h3>
             <div className="space-y-3">
               {game.pairs.map((pair) => {
                 const isMatched = matches[pair.leftId];
@@ -233,12 +286,10 @@ export default function Exercise() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN - Drop zones */}
           <div>
-            <h3 className="text-lg font-bold text-yellow-400 mb-4">📌 Drop here</h3>
+            <h3 className="text-lg font-bold text-yellow-400 mb-4">{t.dropHere}</h3>
             <div className="space-y-3">
               {game.rightItems.map((rightItem) => {
-                // Find which left item is matched to this right item
                 const matchedLeftId = Object.entries(matches).find(
                   ([, rightText]) => rightText === rightItem.text
                 )?.[0];
@@ -267,7 +318,6 @@ export default function Exercise() {
           </div>
         </div>
 
-        {/* Check button */}
         <div className="flex justify-center mb-8">
           <button
             onClick={handleCheckAnswers}
@@ -281,14 +331,13 @@ export default function Exercise() {
               }
             `}
           >
-            ✅ Check Answers ({Object.keys(matches).length}/{game.pairs.length})
+            {t.checkAnswers} ({Object.keys(matches).length}/{game.pairs.length})
           </button>
         </div>
 
-        {/* Footer info */}
         <div className="text-center text-gray-400 text-sm">
-          <p>Theme: {game.theme}</p>
-          <p>Topic: {game.topic}</p>
+          <p>{t.theme}: {game.theme}</p>
+          <p>{t.topic}: {game.topic}</p>
         </div>
       </div>
     </div>
