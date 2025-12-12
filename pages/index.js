@@ -18,6 +18,59 @@ export default function Home() {
     }
   }, []);
 
+  // AUTO-DETECT HOMEWORK AFTER SCAN
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const scanResult = localStorage.getItem("scanResult");
+      if (scanResult) {
+        try {
+          const data = JSON.parse(scanResult);
+          if (data.extracted_text && !localStorage.getItem("detectionInProgress")) {
+            localStorage.setItem("detectionInProgress", "true");
+            detectAndRedirect(data.extracted_text, lang);
+          }
+        } catch (e) {
+          console.log("Storage parse error");
+        }
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [lang]);
+
+  async function detectAndRedirect(extractedText, language) {
+    try {
+      console.log("🔍 Detecting homework...");
+      
+      const res = await fetch("/api/detect-homework", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extractedText: extractedText,
+          language: language
+        })
+      });
+
+      if (res.ok) {
+        const detection = await res.json();
+        console.log("✅ Detected:", detection.topic, "-", detection.skill);
+        
+        // Store detection for exercise page
+        localStorage.setItem("homeworkDetection", JSON.stringify(detection));
+        localStorage.removeItem("detectionInProgress");
+        
+        // AUTO-REDIRECT to exercise with detected topic
+        window.location.href = `/exercise?topic=${detection.topic}&language=${language}`;
+        return;
+      }
+    } catch (err) {
+      console.log("Detection optional, continuing...");
+    }
+    
+    localStorage.removeItem("detectionInProgress");
+  }
+
   function handleKidMode() {
     localStorage.setItem("parentMode", "false");
     setParentMode(false);
