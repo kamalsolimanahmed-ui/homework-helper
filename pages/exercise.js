@@ -254,6 +254,25 @@ export default function Exercise() {
           <p className="text-xl text-gray-300">{game.instructions}</p>
         </div>
 
+        {/* VIDEO SECTION - LANGUAGE AWARE */}
+        {game.video && game.video.success && (
+          <div className="mb-8 bg-slate-800 rounded-xl p-6 border-2 border-yellow-400">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">🎬 Learn More</h2>
+            <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${game.video.videoId}`}
+                title={game.video.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              ></iframe>
+            </div>
+            <p className="text-gray-300 text-center">{game.video.title}</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div>
             <h3 className="text-lg font-bold text-yellow-400 mb-4">{t.dragFrom}</h3>
