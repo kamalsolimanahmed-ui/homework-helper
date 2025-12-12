@@ -61,7 +61,6 @@ Respond with EXACTLY this JSON structure (no extra text):
       return res.status(500).json({ error: 'Invalid detection response' });
     }
 
-    // Map skill to topic (what arcade-matching expects)
     const topicMap = {
       'addition': 'addition',
       'subtraction': 'subtraction',
@@ -83,7 +82,7 @@ Respond with EXACTLY this JSON structure (no extra text):
 
     const topic = topicMap[result.subject.toLowerCase()] || result.subject.toLowerCase();
 
-    console.log(`✅ Detected: ${result.subject} - ${result.skill}`);
+    console.log(`✅ Detected: ${result.subject} - ${result.skill} (confidence: ${result.confidence})`);
 
     return res.status(200).json({
       success: true,

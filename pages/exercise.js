@@ -1,4 +1,3 @@
-// exercise.js - UPDATED
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -25,7 +24,9 @@ const translations = {
     checkAnswers: '✅ Check Answers',
     matchAll: 'Match all items!',
     theme: 'Theme',
-    topic: 'Topic'
+    topic: 'Topic',
+    easier: '😅 Easier',
+    harder: '🔥 Harder'
   },
   fr: {
     loading: 'Chargement du jeu...',
@@ -46,7 +47,9 @@ const translations = {
     checkAnswers: '✅ Vérifier les réponses',
     matchAll: 'Associez tous les éléments!',
     theme: 'Thème',
-    topic: 'Sujet'
+    topic: 'Sujet',
+    easier: '😅 Plus facile',
+    harder: '🔥 Plus difficile'
   },
   es: {
     loading: 'Cargando juego...',
@@ -67,13 +70,15 @@ const translations = {
     checkAnswers: '✅ Verificar respuestas',
     matchAll: '¡Empareja todos los elementos!',
     theme: 'Tema',
-    topic: 'Tema'
+    topic: 'Tema',
+    easier: '😅 Más fácil',
+    harder: '🔥 Más difícil'
   }
 };
 
 export default function Exercise() {
   const router = useRouter();
-  const { topic = 'addition', language = 'en' } = router.query;
+  const { topic = 'addition', language = 'en', difficulty: initialDifficulty = 'medium' } = router.query;
   const t = translations[language] || translations.en;
 
   const [loading, setLoading] = useState(true);
@@ -82,6 +87,7 @@ export default function Exercise() {
   const [matches, setMatches] = useState({});
   const [score, setScore] = useState(null);
   const [error, setError] = useState(null);
+  const [currentDifficulty, setCurrentDifficulty] = useState(initialDifficulty);
 
   useEffect(() => {
     if (!topic || !language) return;
@@ -97,7 +103,7 @@ export default function Exercise() {
         const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
 
         const res = await fetch(
-          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&problems=${encodeURIComponent(problemsParam)}`
+          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&difficulty=${currentDifficulty}&problems=${encodeURIComponent(problemsParam)}`
         );
 
         if (!res.ok) {
@@ -107,6 +113,12 @@ export default function Exercise() {
         const data = await res.json();
         setGame(data);
         setError(null);
+
+        // PERSIST DIFFICULTY TO LEARNING HISTORY
+        const history = JSON.parse(localStorage.getItem('learningHistory') || '{}');
+        history.last_difficulty = currentDifficulty;
+        history.updated_at = new Date().toISOString();
+        localStorage.setItem('learningHistory', JSON.stringify(history));
       } catch (err) {
         console.error('Game fetch error:', err);
         setError(t.fetchError);
@@ -117,7 +129,7 @@ export default function Exercise() {
     }
 
     fetchGame();
-  }, [topic, language, t]);
+  }, [topic, language, currentDifficulty, t]);
 
   function handleDragStart(e, pair) {
     setDraggedItem(pair);
@@ -177,8 +189,17 @@ export default function Exercise() {
     setDraggedItem(null);
     const currentTopic = router.query.topic || 'addition';
     const currentLanguage = router.query.language || 'en';
-    router.push(`/exercise?topic=${currentTopic}&language=${currentLanguage}`);
+    router.push(`/exercise?topic=${currentTopic}&language=${currentLanguage}&difficulty=${currentDifficulty}`);
   }
+
+  // EASY/HARD BUTTONS
+  function handleMakeDifficulty(newDifficulty) {
+    if (newDifficulty === currentDifficulty) return;
+    setCurrentDifficulty(newDifficulty);
+  }
+
+  const canMakeEasier = currentDifficulty !== 'easy';
+  const canMakeHarder = currentDifficulty !== 'hard';
 
   if (loading) {
     return (
@@ -273,6 +294,7 @@ export default function Exercise() {
             <p className="text-gray-300 text-center">{game.video.title}</p>
           </div>
         )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div>
             <h3 className="text-lg font-bold text-yellow-400 mb-4">{t.dragFrom}</h3>
@@ -337,12 +359,30 @@ export default function Exercise() {
           </div>
         </div>
 
-        <div className="flex justify-center mb-8">
+        {/* EASY/HARD BUTTONS */}
+        <div className="flex justify-center gap-4 mb-8 flex-wrap">
+          <button
+            onClick={() => handleMakeDifficulty('easy')}
+            disabled={!canMakeEasier}
+            className={`
+              px-6 py-3 font-bold rounded-lg text-lg transition-all duration-200
+              ${
+                !canMakeEasier
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+                  : currentDifficulty === 'easy'
+                  ? 'bg-green-500 text-white shadow-lg'
+                  : 'bg-gray-700 text-white hover:bg-gray-600 shadow-md'
+              }
+            `}
+          >
+            {t.easier}
+          </button>
+
           <button
             onClick={handleCheckAnswers}
             disabled={Object.keys(matches).length === 0}
             className={`
-              px-8 py-4 font-bold rounded-lg text-lg transition-all duration-200
+              px-8 py-3 font-bold rounded-lg text-lg transition-all duration-200
               ${
                 Object.keys(matches).length === 0
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
@@ -352,11 +392,29 @@ export default function Exercise() {
           >
             {t.checkAnswers} ({Object.keys(matches).length}/{game.pairs.length})
           </button>
+
+          <button
+            onClick={() => handleMakeDifficulty('hard')}
+            disabled={!canMakeHarder}
+            className={`
+              px-6 py-3 font-bold rounded-lg text-lg transition-all duration-200
+              ${
+                !canMakeHarder
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+                  : currentDifficulty === 'hard'
+                  ? 'bg-red-500 text-white shadow-lg'
+                  : 'bg-gray-700 text-white hover:bg-gray-600 shadow-md'
+              }
+            `}
+          >
+            {t.harder}
+          </button>
         </div>
 
+        {/* FOOTER INFO */}
         <div className="text-center text-gray-400 text-sm">
           <p>{t.theme}: {game.theme}</p>
-          <p>{t.topic}: {game.topic}</p>
+          <p>{t.topic}: {game.topic} ({currentDifficulty})</p>
         </div>
       </div>
     </div>

@@ -4,8 +4,10 @@ import ScanButton from "../components/ScanButton";
 export default function Home() {
   const [parentMode, setParentMode] = useState(false);
   const [lang, setLang] = useState("en");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [detectedData, setDetectedData] = useState(null);
+  const [manualOverride, setManualOverride] = useState(false);
 
-  // Load saved mode and language from localStorage
   useEffect(() => {
     const savedMode = localStorage.getItem("parentMode");
     const savedLang = localStorage.getItem("lang");
@@ -22,10 +24,10 @@ export default function Home() {
   useEffect(() => {
     const handleStorageChange = () => {
       const scanResult = localStorage.getItem("scanResult");
-      if (scanResult) {
+      if (scanResult && !localStorage.getItem("detectionInProgress")) {
         try {
           const data = JSON.parse(scanResult);
-          if (data.extracted_text && !localStorage.getItem("detectionInProgress")) {
+          if (data.extracted_text) {
             localStorage.setItem("detectionInProgress", "true");
             detectAndRedirect(data.extracted_text, lang);
           }
@@ -54,14 +56,20 @@ export default function Home() {
 
       if (res.ok) {
         const detection = await res.json();
-        console.log("✅ Detected:", detection.topic, "-", detection.skill);
+        console.log("✅ Detected:", detection.topic, "-", detection.skill, `(confidence: ${detection.confidence})`);
         
-        // Store detection for exercise page
-        localStorage.setItem("homeworkDetection", JSON.stringify(detection));
-        localStorage.removeItem("detectionInProgress");
-        
-        // AUTO-REDIRECT to exercise with detected topic
-        window.location.href = `/exercise?topic=${detection.topic}&language=${language}`;
+        // CONFIDENCE GATE: if < 0.7, ask for confirmation
+        if (detection.confidence < 0.7) {
+          console.log("⚠️ Low confidence, asking parent to confirm");
+          setDetectedData(detection);
+          setManualOverride(false);
+          setShowConfirmation(true);
+          localStorage.removeItem("detectionInProgress");
+          return;
+        }
+
+        // HIGH CONFIDENCE: proceed automatically
+        proceedWithDetection(detection);
         return;
       }
     } catch (err) {
@@ -69,6 +77,38 @@ export default function Home() {
     }
     
     localStorage.removeItem("detectionInProgress");
+  }
+
+  function proceedWithDetection(detection) {
+    // Store learning history
+    const history = {
+      last_topic: detection.topic,
+      last_skill: detection.skill,
+      last_grade: detection.grade_level,
+      last_language: detection.language,
+      last_difficulty: detection.difficulty,
+      updated_at: new Date().toISOString()
+    };
+    localStorage.setItem("learningHistory", JSON.stringify(history));
+    
+    // Store detection for exercise page
+    localStorage.setItem("homeworkDetection", JSON.stringify(detection));
+    localStorage.removeItem("detectionInProgress");
+    
+    // AUTO-REDIRECT to exercise with detected topic
+    window.location.href = `/exercise?topic=${detection.topic}&language=${detection.language}&difficulty=${detection.difficulty}`;
+  }
+
+  function handleConfirmYes() {
+    setShowConfirmation(false);
+    proceedWithDetection(detectedData);
+  }
+
+  function handleConfirmNo() {
+    setShowConfirmation(false);
+    setManualOverride(true);
+    localStorage.removeItem("detectionInProgress");
+    // Keep scan result, show topic selector to parent
   }
 
   function handleKidMode() {
@@ -110,7 +150,6 @@ export default function Home() {
       background-size: cover;
     }
 
-    /* ---------- DESKTOP (>1100px) ---------- */
     @media (min-width: 1101px) {
       .hero-section {
         height: 540px;
@@ -118,7 +157,6 @@ export default function Home() {
       }
     }
 
-    /* ---------- TABLET (700px - 1100px) ---------- */
     @media (min-width: 700px) and (max-width: 1100px) {
       .hero-section {
         height: 420px;
@@ -126,7 +164,6 @@ export default function Home() {
       }
     }
 
-    /* ---------- PHONE (≤700px) ---------- */
     @media (max-width: 700px) {
       .hero-section {
         height: 300px;
@@ -134,7 +171,6 @@ export default function Home() {
       }
     }
 
-    /* ---------- SMALL PHONE (≤420px) ---------- */
     @media (max-width: 420px) {
       .hero-section {
         height: 240px;
@@ -204,7 +240,6 @@ export default function Home() {
       font-family: Arial, sans-serif;
     }
 
-    /* Style ScanButton - Make it BIGGER and PROFESSIONAL */
     .scan-btn-wrapper button,
     .scan-btn-wrapper div button {
       display: inline-block;
@@ -227,7 +262,65 @@ export default function Home() {
       transform: scale(1.05);
     }
 
-    /* ---------- RESPONSIVE ADJUSTMENTS FOR BUTTONS ---------- */
+    .confirmation-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .confirmation-content {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      max-width: 400px;
+      color: #04133A;
+    }
+
+    .confirmation-content h3 {
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+
+    .confirmation-content p {
+      margin: 12px 0;
+      font-size: 16px;
+    }
+
+    .confirmation-buttons {
+      display: flex;
+      gap: 15px;
+      margin-top: 25px;
+      justify-content: center;
+    }
+
+    .confirmation-buttons button {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+    }
+
+    .btn-yes {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .btn-no {
+      background-color: #f44336;
+      color: white;
+    }
+
     @media (max-width: 700px) {
       h2 {
         font-size: 22px;
@@ -260,6 +353,19 @@ export default function Home() {
       .scan-btn-wrapper {
         margin-top: 60px;
         margin-bottom: 40px;
+      }
+
+      .confirmation-content {
+        margin: 20px;
+        padding: 25px;
+      }
+
+      .confirmation-buttons {
+        flex-direction: column;
+      }
+
+      .confirmation-buttons button {
+        width: 100%;
       }
     }
 
@@ -323,8 +429,27 @@ export default function Home() {
     <>
       <style>{styles}</style>
       
+      {/* CONFIDENCE GATE MODAL */}
+      {showConfirmation && detectedData && (
+        <div className="confirmation-modal">
+          <div className="confirmation-content">
+            <h3>⚠️ Confirm Homework Topic</h3>
+            <p><strong>Topic:</strong> {detectedData.topic}</p>
+            <p><strong>Skill:</strong> {detectedData.skill}</p>
+            <p><strong>Grade:</strong> Grade {detectedData.grade_level}</p>
+            <p><strong>Language:</strong> {detectedData.language}</p>
+            <p style={{marginTop: "20px", fontSize: "14px", fontStyle: "italic"}}>
+              Is this correct?
+            </p>
+            <div className="confirmation-buttons">
+              <button className="btn-yes" onClick={handleConfirmYes}>Yes, Continue</button>
+              <button className="btn-no" onClick={handleConfirmNo}>No, Choose Topic</button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div style={{ backgroundColor: "#04133A", minHeight: "100vh", textAlign: "center", width: "100%" }}>
-        {/* Language Selector */}
         <div className="language-selector">
           <select value={lang} onChange={handleLanguageChange}>
             <option value="en">🇺🇸 English (USA)</option>
@@ -335,13 +460,10 @@ export default function Home() {
           </select>
         </div>
 
-        {/* Hero Section - PUSHED DOWN WITH PADDING */}
         <div className="hero-section"></div>
 
-        {/* Heading */}
         <h2>Who's doing homework?</h2>
 
-        {/* Mode Container */}
         <div className="mode-container">
           <button
             className="mode-box"
@@ -366,7 +488,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Scan Button Wrapper - BIGGER & MORE PROFESSIONAL - NOW WITH MORE SPACE */}
         <div className="scan-btn-wrapper">
           <ScanButton />
         </div>
