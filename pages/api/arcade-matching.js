@@ -10,7 +10,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Smart difficulty detection: if ANY 3-digit number in worksheet, difficulty = hard
     const finalDifficulty = difficulty === 'auto' 
       ? detectDifficulty(problems, topic)
       : difficulty;
@@ -19,10 +18,24 @@ export default async function handler(req, res) {
     
     const rightItems = game.pairs.map(p => p.right).sort(() => Math.random() - 0.5);
 
+    // FETCH VIDEO WITH LANGUAGE
+    let videoData = null;
+    try {
+      const videoRes = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/video?topic=${encodeURIComponent(topic)}&language=${language}`
+      );
+      if (videoRes.ok) {
+        videoData = await videoRes.json();
+      }
+    } catch (videoErr) {
+      console.log('Video fetch optional, continuing without it');
+    }
+
     res.status(200).json({
       theme: game.theme,
       topic: topic,
       difficulty: finalDifficulty,
+      language: language,
       pairs: game.pairs.map((p, idx) => ({
         left: p.left,
         leftId: `item_${idx}`
@@ -32,7 +45,8 @@ export default async function handler(req, res) {
         id: idx
       })),
       instructions: game.instructions,
-      shuffleRightSide: true
+      shuffleRightSide: true,
+      video: videoData || null
     });
   } catch (error) {
     console.error('Error:', error);
@@ -40,38 +54,16 @@ export default async function handler(req, res) {
   }
 }
 
-// ============================================
-// SMART DIFFICULTY DETECTION
-// ============================================
-
 function detectDifficulty(problems, topic) {
   if (!problems) return 'medium';
-
   const problemStr = String(problems);
-  
-  // Extract all numbers from problems
   const numbers = problemStr.match(/\d+/g) || [];
-  
-  // If ANY number is 3-digit (100-999), difficulty = HARD
   const has3Digit = numbers.some(num => num.length === 3);
-  
-  if (has3Digit) {
-    return 'hard';
-  }
-
-  // If any number is 2-digit (10-99), difficulty = MEDIUM
+  if (has3Digit) return 'hard';
   const has2Digit = numbers.some(num => num.length === 2);
-  if (has2Digit) {
-    return 'medium';
-  }
-
-  // Single digit = EASY
+  if (has2Digit) return 'medium';
   return 'easy';
 }
-
-// ============================================
-// THEME MAPPING BY TOPIC
-// ============================================
 
 const THEME_MAP = {
   math: [
@@ -141,46 +133,24 @@ const THEME_MAP = {
   ]
 };
 
-// ============================================
-// MAIN GAME GENERATOR
-// ============================================
-
 function generateArcadeGame(topic, language, difficulty) {
   const topicLower = topic.toLowerCase();
-  
-  // Get theme for this topic + difficulty
   const themeData = getTheme(topicLower, difficulty, language);
-  
-  // Generate pairs based on topic + difficulty
   let pairs = [];
   
-  if (topicLower === 'addition') {
-    pairs = generateAdditionPairs(difficulty);
-  } else if (topicLower === 'subtraction') {
-    pairs = generateSubtractionPairs(difficulty);
-  } else if (topicLower === 'multiplication') {
-    pairs = generateMultiplicationPairs(difficulty);
-  } else if (topicLower === 'division') {
-    pairs = generateDivisionPairs(difficulty);
-  } else if (topicLower === 'vocabulary') {
-    pairs = generateVocabularyPairs(difficulty);
-  } else if (topicLower === 'synonym') {
-    pairs = generateSynonymPairs(difficulty);
-  } else if (topicLower === 'antonym') {
-    pairs = generateAntonymPairs(difficulty);
-  } else if (topicLower === 'animal') {
-    pairs = generateAnimalPairs(difficulty);
-  } else if (topicLower === 'color') {
-    pairs = generateColorPairs(difficulty);
-  } else if (topicLower === 'body') {
-    pairs = generateBodyParts(difficulty);
-  } else if (topicLower === 'geography' || topicLower === 'capital') {
-    pairs = generateCapitalPairs(difficulty);
-  } else if (topicLower === 'reading') {
-    pairs = generateReadingPairs(difficulty);
-  } else {
-    pairs = generateDefaultPairs(difficulty);
-  }
+  if (topicLower === 'addition') pairs = generateAdditionPairs(difficulty);
+  else if (topicLower === 'subtraction') pairs = generateSubtractionPairs(difficulty);
+  else if (topicLower === 'multiplication') pairs = generateMultiplicationPairs(difficulty);
+  else if (topicLower === 'division') pairs = generateDivisionPairs(difficulty);
+  else if (topicLower === 'vocabulary') pairs = generateVocabularyPairs(difficulty);
+  else if (topicLower === 'synonym') pairs = generateSynonymPairs(difficulty);
+  else if (topicLower === 'antonym') pairs = generateAntonymPairs(difficulty);
+  else if (topicLower === 'animal') pairs = generateAnimalPairs(difficulty);
+  else if (topicLower === 'color') pairs = generateColorPairs(difficulty);
+  else if (topicLower === 'body') pairs = generateBodyParts(difficulty);
+  else if (topicLower === 'geography' || topicLower === 'capital') pairs = generateCapitalPairs(difficulty);
+  else if (topicLower === 'reading') pairs = generateReadingPairs(difficulty);
+  else pairs = generateDefaultPairs(difficulty);
 
   return {
     theme: themeData.theme,
@@ -189,15 +159,10 @@ function generateArcadeGame(topic, language, difficulty) {
   };
 }
 
-// ============================================
-// THEME GETTER
-// ============================================
-
 function getTheme(topic, difficulty, language) {
   const themeList = THEME_MAP[topic] || THEME_MAP['vocabulary'];
   const diffLevel = difficulty === 'easy' ? 'easy' : difficulty === 'hard' ? 'hard' : 'medium';
   const themeData = themeList.find(t => t.difficulty === diffLevel) || themeList[1];
-  
   const instruction = language === 'es' ? themeData.es : themeData.en;
   
   return {
@@ -206,105 +171,88 @@ function getTheme(topic, difficulty, language) {
   };
 }
 
-// ============================================
-// ADDITION - HARD = 3-DIGIT ONLY
-// ============================================
-
 function generateAdditionPairs(difficulty) {
   if (difficulty === 'hard') {
-    // Hard mode: ALWAYS 3-digit addition with unique answers
     return [
       { left: '472 + 159', right: '631' },
       { left: '385 + 247', right: '632' },
       { left: '516 + 284', right: '800' },
-      { left: '623 + 189', right: '812' },
-      { left: '754 + 168', right: '922' },
-      { left: '491 + 356', right: '847' }
+      { left: '623 + 178', right: '801' },
+      { left: '745 + 256', right: '1001' },
+      { left: '834 + 167', right: '1001' }
     ];
   } else if (difficulty === 'easy') {
     return [
-      { left: '2 + 3', right: '5' },
-      { left: '4 + 1', right: '5' },
+      { left: '2 + 1', right: '3' },
       { left: '3 + 2', right: '5' },
-      { left: '1 + 4', right: '5' },
-      { left: '2 + 2', right: '4' },
-      { left: '3 + 1', right: '4' }
+      { left: '4 + 1', right: '5' },
+      { left: '5 + 2', right: '7' },
+      { left: '3 + 3', right: '6' },
+      { left: '4 + 2', right: '6' }
     ];
   } else {
-    // medium
     return [
-      { left: '12 + 15', right: '27' },
-      { left: '24 + 13', right: '37' },
-      { left: '18 + 22', right: '40' },
-      { left: '31 + 19', right: '50' },
-      { left: '26 + 14', right: '40' },
-      { left: '33 + 17', right: '50' }
+      { left: '12 + 13', right: '25' },
+      { left: '15 + 14', right: '29' },
+      { left: '20 + 15', right: '35' },
+      { left: '25 + 16', right: '41' },
+      { left: '30 + 20', right: '50' },
+      { left: '24 + 13', right: '37' }
     ];
   }
 }
 
-// ============================================
-// SUBTRACTION - HARD = 3-DIGIT ONLY
-// ============================================
-
 function generateSubtractionPairs(difficulty) {
   if (difficulty === 'hard') {
-    // Hard mode: ALWAYS 3-digit subtraction with unique answers
     return [
-      { left: '752 - 341', right: '411' },
-      { left: '648 - 219', right: '429' },
-      { left: '875 - 324', right: '551' },
-      { left: '563 - 248', right: '315' },
-      { left: '934 - 287', right: '647' },
-      { left: '721 - 156', right: '565' }
+      { left: '500 - 247', right: '253' },
+      { left: '600 - 345', right: '255' },
+      { left: '750 - 428', right: '322' },
+      { left: '823 - 467', right: '356' },
+      { left: '912 - 589', right: '323' },
+      { left: '645 - 234', right: '411' }
     ];
   } else if (difficulty === 'easy') {
     return [
       { left: '5 - 2', right: '3' },
       { left: '6 - 3', right: '3' },
-      { left: '4 - 1', right: '3' },
       { left: '7 - 2', right: '5' },
       { left: '8 - 3', right: '5' },
-      { left: '5 - 1', right: '4' }
+      { left: '10 - 5', right: '5' },
+      { left: '9 - 4', right: '5' }
     ];
   } else {
-    // medium
     return [
       { left: '25 - 12', right: '13' },
-      { left: '37 - 15', right: '22' },
-      { left: '48 - 23', right: '25' },
-      { left: '56 - 24', right: '32' },
-      { left: '63 - 31', right: '32' },
-      { left: '42 - 18', right: '24' }
+      { left: '30 - 15', right: '15' },
+      { left: '45 - 20', right: '25' },
+      { left: '50 - 23', right: '27' },
+      { left: '60 - 35', right: '25' },
+      { left: '40 - 18', right: '22' }
     ];
   }
 }
 
-// ============================================
-// MULTIPLICATION - HARD = 3-DIGIT NUMBERS
-// ============================================
-
 function generateMultiplicationPairs(difficulty) {
   if (difficulty === 'hard') {
     return [
-      { left: '24 × 15', right: '360' },
-      { left: '32 × 18', right: '576' },
-      { left: '27 × 14', right: '378' },
-      { left: '41 × 23', right: '943' },
-      { left: '35 × 19', right: '665' },
-      { left: '29 × 16', right: '464' }
+      { left: '45 × 12', right: '540' },
+      { left: '32 × 15', right: '480' },
+      { left: '28 × 14', right: '392' },
+      { left: '36 × 13', right: '468' },
+      { left: '24 × 16', right: '384' },
+      { left: '42 × 11', right: '462' }
     ];
   } else if (difficulty === 'easy') {
     return [
-      { left: '2 × 3', right: '6' },
-      { left: '4 × 2', right: '8' },
+      { left: '2 × 2', right: '4' },
       { left: '3 × 3', right: '9' },
       { left: '5 × 2', right: '10' },
       { left: '2 × 4', right: '8' },
-      { left: '3 × 2', right: '6' }
+      { left: '3 × 2', right: '6' },
+      { left: '4 × 2', right: '8' }
     ];
   } else {
-    // medium
     return [
       { left: '12 × 3', right: '36' },
       { left: '15 × 2', right: '30' },
@@ -315,10 +263,6 @@ function generateMultiplicationPairs(difficulty) {
     ];
   }
 }
-
-// ============================================
-// DIVISION - HARD = 3-DIGIT NUMBERS
-// ============================================
 
 function generateDivisionPairs(difficulty) {
   if (difficulty === 'hard') {
@@ -340,7 +284,6 @@ function generateDivisionPairs(difficulty) {
       { left: '15 ÷ 3', right: '5' }
     ];
   } else {
-    // medium
     return [
       { left: '36 ÷ 3', right: '12' },
       { left: '30 ÷ 2', right: '15' },
@@ -351,10 +294,6 @@ function generateDivisionPairs(difficulty) {
     ];
   }
 }
-
-// ============================================
-// VOCABULARY - NON-MATH
-// ============================================
 
 function generateVocabularyPairs(difficulty) {
   if (difficulty === 'easy') {
@@ -376,7 +315,6 @@ function generateVocabularyPairs(difficulty) {
       { left: 'serendipity', right: 'fortunate chance' }
     ];
   } else {
-    // medium
     return [
       { left: 'benevolent', right: 'kind' },
       { left: 'meticulous', right: 'careful' },
@@ -387,10 +325,6 @@ function generateVocabularyPairs(difficulty) {
     ];
   }
 }
-
-// ============================================
-// SYNONYM - NON-MATH
-// ============================================
 
 function generateSynonymPairs(difficulty) {
   return [
@@ -403,10 +337,6 @@ function generateSynonymPairs(difficulty) {
   ];
 }
 
-// ============================================
-// ANTONYM - NON-MATH
-// ============================================
-
 function generateAntonymPairs(difficulty) {
   return [
     { left: 'big', right: 'small' },
@@ -417,10 +347,6 @@ function generateAntonymPairs(difficulty) {
     { left: 'good', right: 'bad' }
   ];
 }
-
-// ============================================
-// ANIMAL - NON-MATH
-// ============================================
 
 function generateAnimalPairs(difficulty) {
   return [
@@ -433,10 +359,6 @@ function generateAnimalPairs(difficulty) {
   ];
 }
 
-// ============================================
-// COLOR - NON-MATH
-// ============================================
-
 function generateColorPairs(difficulty) {
   return [
     { left: '🔴 Red', right: 'Fire' },
@@ -447,10 +369,6 @@ function generateColorPairs(difficulty) {
     { left: '⚪ White', right: 'Snow' }
   ];
 }
-
-// ============================================
-// BODY PARTS - NON-MATH
-// ============================================
 
 function generateBodyParts(difficulty) {
   return [
@@ -463,10 +381,6 @@ function generateBodyParts(difficulty) {
   ];
 }
 
-// ============================================
-// GEOGRAPHY/CAPITALS - NON-MATH
-// ============================================
-
 function generateCapitalPairs(difficulty) {
   return [
     { left: 'France', right: 'Paris' },
@@ -477,10 +391,6 @@ function generateCapitalPairs(difficulty) {
     { left: 'Italy', right: 'Rome' }
   ];
 }
-
-// ============================================
-// READING - NON-MATH
-// ============================================
 
 function generateReadingPairs(difficulty) {
   if (difficulty === 'easy') {
@@ -503,10 +413,6 @@ function generateReadingPairs(difficulty) {
     ];
   }
 }
-
-// ============================================
-// DEFAULT - NON-MATH
-// ============================================
 
 function generateDefaultPairs(difficulty) {
   return [
