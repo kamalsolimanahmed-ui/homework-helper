@@ -20,7 +20,6 @@ export default function Home() {
     }
   }, []);
 
-  // AUTO-DETECT HOMEWORK AFTER SCAN
   useEffect(() => {
     const handleStorageChange = () => {
       const scanResult = localStorage.getItem("scanResult");
@@ -58,7 +57,6 @@ export default function Home() {
         const detection = await res.json();
         console.log("✅ Detected:", detection.topic, "-", detection.skill, `(confidence: ${detection.confidence})`);
         
-        // CONFIDENCE GATE: if < 0.7, ask for confirmation
         if (detection.confidence < 0.7) {
           console.log("⚠️ Low confidence, asking parent to confirm");
           setDetectedData(detection);
@@ -68,7 +66,6 @@ export default function Home() {
           return;
         }
 
-        // HIGH CONFIDENCE: proceed automatically
         proceedWithDetection(detection);
         return;
       }
@@ -80,13 +77,30 @@ export default function Home() {
   }
 
   function proceedWithDetection(detection) {
+    // Map grade_level to numeric level (0-10)
+    const gradeToLevel = {
+      'K': 0, '0': 0,
+      '1': 1, '1st': 1,
+      '2': 2, '2nd': 2,
+      '3': 3, '3rd': 3,
+      '4': 4, '4th': 4,
+      '5': 5, '5th': 5,
+      '6': 6, '6th': 6,
+      '7': 7, '7th': 7,
+      '8': 8, '8th': 8,
+      '9': 9, '9th': 9,
+      '10': 10, '10th': 10
+    };
+
+    const level = gradeToLevel[detection.grade_level] || 2;
+
     // Store learning history
     const history = {
       last_topic: detection.topic,
       last_skill: detection.skill,
       last_grade: detection.grade_level,
       last_language: detection.language,
-      last_difficulty: detection.difficulty,
+      last_level: level,
       updated_at: new Date().toISOString()
     };
     localStorage.setItem("learningHistory", JSON.stringify(history));
@@ -95,8 +109,8 @@ export default function Home() {
     localStorage.setItem("homeworkDetection", JSON.stringify(detection));
     localStorage.removeItem("detectionInProgress");
     
-    // AUTO-REDIRECT to exercise with detected topic
-    window.location.href = `/exercise?topic=${detection.topic}&language=${detection.language}&difficulty=${detection.difficulty}`;
+    // AUTO-REDIRECT to exercise with detected topic and level
+    window.location.href = `/exercise?topic=${detection.topic}&language=${detection.language}&level=${level}`;
   }
 
   function handleConfirmYes() {
@@ -108,7 +122,6 @@ export default function Home() {
     setShowConfirmation(false);
     setManualOverride(true);
     localStorage.removeItem("detectionInProgress");
-    // Keep scan result, show topic selector to parent
   }
 
   function handleKidMode() {
@@ -429,7 +442,6 @@ export default function Home() {
     <>
       <style>{styles}</style>
       
-      {/* CONFIDENCE GATE MODAL */}
       {showConfirmation && detectedData && (
         <div className="confirmation-modal">
           <div className="confirmation-content">
