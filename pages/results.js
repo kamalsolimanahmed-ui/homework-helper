@@ -2,6 +2,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
+function getSubjectFromTopic(topic) {
+  const subjectMap = {
+    addition: 'math',
+    subtraction: 'math',
+    multiplication: 'math',
+    division: 'math',
+    reading: 'english',
+    vocabulary: 'english',
+    grammar: 'english',
+    phonics: 'english',
+    french: 'french',
+    spanish: 'spanish',
+    german: 'german',
+    arabic: 'arabic',
+  };
+  return subjectMap[topic?.toLowerCase()] || 'vocabulary';
+}
+
 export default function Results() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +39,6 @@ export default function Results() {
     setResult(resultData);
     setLoading(false);
 
-    // Fetch YouTube video based on topic
     if (resultData.topic && resultData.topic !== "unknown") {
       fetchVideo(resultData.topic);
     }
@@ -30,19 +47,22 @@ export default function Results() {
   async function fetchVideo(topic) {
     try {
       setVideoLoading(true);
+      const subject = getSubjectFromTopic(topic);
 
-      console.log(`🎬 Fetching video for topic: ${topic}`);
+      console.log(`🎬 Fetching video for: ${topic} → subject: ${subject}`);
 
-      const res = await fetch(`/api/video?topic=${encodeURIComponent(topic)}`);
+      const res = await fetch(
+        `/api/video?subject=${encodeURIComponent(subject)}&difficulty_band=normal`
+      );
       const data = await res.json();
 
-      if (!res.ok) {
-        console.warn(`⚠️ Video fetch failed: ${data.error}`);
+      if (!data.success) {
+        console.warn(`⚠️ Video not available: ${data.error}`);
         setVideoLoading(false);
         return;
       }
 
-      console.log(`✅ Video found: ${data.title}`);
+      console.log(`✅ Video found: ${data.title} (Creator: ${data.creator})`);
       setVideo(data);
       setVideoLoading(false);
     } catch (error) {
@@ -79,14 +99,12 @@ export default function Results() {
 
   const modeLabel = result.mode === "parent" ? "👨‍💼 Parent Mode" : "👧 Kid Mode";
 
-  // Split answers and explanations by problem number
   const answers = result.simple_answer.split('\n').filter(a => a.trim());
   const explanations = result.explanation.split('\n\n').filter(e => e.trim());
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black p-4">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8 mt-6">
           <h1 className="text-5xl font-bold text-yellow-400 mb-2 drop-shadow-lg">
             ⚡ Awesome Job!
@@ -95,20 +113,18 @@ export default function Results() {
           <p className="text-lg text-yellow-300 mt-2 font-semibold">{modeLabel}</p>
         </div>
 
-        {/* Summary Card */}
         <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-purple-400">
           <div className="flex items-center gap-3">
             <span className="text-4xl">📊</span>
             <div>
               <h3 className="text-2xl font-bold text-purple-300">Problem Summary</h3>
               <p className="text-gray-100 text-lg">
-                {answers.length} problem{answers.length !== 1 ? 's' : ''} solved ✓
+                {answers.length} problem{answers.length !== 1 ? 's' : ''} solved ✔
               </p>
             </div>
           </div>
         </div>
 
-        {/* All Answers Card */}
         <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
           <div className="flex items-center mb-4">
             <span className="text-4xl mr-3">⭐</span>
@@ -127,7 +143,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Individual Problem Solutions */}
         <div className="mb-6">
           <h3 className="text-2xl font-bold text-white mb-4">📖 Detailed Solutions</h3>
           
@@ -149,7 +164,6 @@ export default function Results() {
           ))}
         </div>
 
-        {/* Steps to Remember */}
         <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-green-400">
           <div className="flex items-center mb-3">
             <span className="text-4xl mr-3">📋</span>
@@ -160,7 +174,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Fun Tip Card */}
         <div className="bg-gradient-to-br from-orange-600 to-yellow-600 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
           <div className="flex items-center mb-3">
             <span className="text-4xl mr-3">🎯</span>
@@ -173,7 +186,6 @@ export default function Results() {
           </p>
         </div>
 
-        {/* YouTube Video Section */}
         {result.topic && result.topic !== "unknown" && (
           <div className="bg-gradient-to-br from-red-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-red-500">
             <div className="flex items-center mb-4">
@@ -191,7 +203,7 @@ export default function Results() {
               <div className="space-y-4">
                 <div className="w-full rounded-lg overflow-hidden shadow-lg">
                   <iframe
-                    src={`https://www.youtube.com/embed/${video.videoId}`}
+                    src={video.embedUrl}
                     width="100%"
                     height="220"
                     frameBorder="0"
@@ -206,8 +218,11 @@ export default function Results() {
                   <h3 className="text-lg font-bold text-gray-100 line-clamp-2">
                     {video.title}
                   </h3>
+                  <p className="text-sm text-gray-400 mt-1">
+                    👤 {video.creator}
+                  </p>
                   <p className="text-sm text-gray-400 mt-2">
-                    🎬 Recommended for learning this concept
+                    🎬 Recommended for ages {video.ageMin}-{video.ageMax}
                   </p>
                 </div>
 
@@ -224,7 +239,6 @@ export default function Results() {
           </div>
         )}
 
-        {/* Topic Card */}
         <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-purple-400">
           <div className="flex items-center justify-between">
             <div>
@@ -235,7 +249,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Extracted Text (Optional) */}
         <div className="bg-slate-800 rounded-2xl p-6 mb-8 shadow-xl border-2 border-slate-600">
           <details className="cursor-pointer group">
             <summary className="text-lg font-bold text-gray-300 cursor-pointer hover:text-gray-100 flex items-center gap-2 pb-3 border-b-2 border-slate-600 group-open:border-slate-500">
@@ -250,7 +263,6 @@ export default function Results() {
           </details>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-4 justify-center mb-8">
           <Link href="/">
             <button className="px-8 py-4 bg-white text-blue-900 font-bold rounded-xl text-lg shadow-lg hover:bg-gray-100">
