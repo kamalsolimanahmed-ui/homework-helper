@@ -3,162 +3,152 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { subject = 'math', difficulty_band = 'normal', language = 'en', lastVideoId = null } = req.query;
+  const { subject = 'math', difficulty_band = 'normal' } = req.query;
 
   console.log(`\n${'='.repeat(70)}`);
-  console.log(`🎬 === VIDEO SELECTION ===`);
+  console.log(`🎬 === STRICT VIDEO WHITELIST ===`);
   console.log(`📚 Subject: ${subject}`);
   console.log(`📊 Difficulty: ${difficulty_band}`);
-  console.log(`🌍 Language: ${language}`);
-  console.log(`⏭️ LastVideoId: ${lastVideoId || 'none'}`);
   console.log(`${'='.repeat(70)}`);
 
-  const videoPools = {
+  const WHITELIST = {
     math: {
       easy: [
-        { videoId: 'dQw4w9WgXcQ', title: 'Basic Addition for Kids' },
-        { videoId: 'jNQXAC9IVRw', title: 'Easy Math Fundamentals' },
-        { videoId: '9bZkp7q19f0', title: 'Simple Counting' },
+        { id: 'nKIu9yen5nc', title: 'Basic Addition Basics for Kindergarten', duration: 420 },
+        { id: 'FyFJEMF0bpA', title: 'Simple Addition with Visual Blocks', duration: 480 },
+        { id: 'LzXJ0ysNlpk', title: 'Early Math Skills', duration: 360 },
       ],
       normal: [
-        { videoId: 'crfvqKKMpZM', title: 'Math Explained Clearly' },
-        { videoId: 'vVk3xqsabX8', title: 'Math Problem Solving' },
-        { videoId: 'OPf0YbXqDm0', title: 'Understanding Numbers' },
+        { id: '99dVwvKqY78', title: 'Grade 3 Math Fundamentals', duration: 540 },
+        { id: 'bC_Kqd9P0vk', title: 'Multiplication Explained', duration: 480 },
+        { id: '5hVm5p59OEo', title: 'Understanding Division', duration: 420 },
       ],
       hard: [
-        { videoId: 'dQw4w9WgXcQ', title: 'Advanced Math Concepts' },
-        { videoId: 'jNQXAC9IVRw', title: 'Multi-step Math Problems' },
-        { videoId: 'vVk3xqsabX8', title: 'Mathematical Thinking' },
+        { id: 'GgLM2N7__tw', title: 'Advanced Fractions', duration: 600 },
+        { id: 'N-2vTEy3-6Q', title: 'Multi-Digit Operations', duration: 540 },
+        { id: 'kQSq5WnVy_M', title: 'Intro to Algebra', duration: 480 },
       ],
     },
     english: {
       easy: [
-        { videoId: 'jNQXAC9IVRw', title: 'Learning Basic Words' },
-        { videoId: 'crfvqKKMpZM', title: 'Simple Sentences' },
-        { videoId: '9bZkp7q19f0', title: 'Reading Fundamentals' },
+        { id: '30gEiweaAVQ', title: 'Learning the Alphabet', duration: 360 },
+        { id: 'vEBT34t0yyY', title: 'Simple Sight Words', duration: 300 },
+        { id: '1aVy30s-3b8', title: 'Beginning Reading Basics', duration: 420 },
       ],
       normal: [
-        { videoId: 'dQw4w9WgXcQ', title: 'English Grammar Made Easy' },
-        { videoId: 'OPf0YbXqDm0', title: 'Vocabulary Building' },
-        { videoId: 'vVk3xqsabX8', title: 'Writing Skills' },
+        { id: 'T5_E0YEhqzM', title: 'Grammar Essentials', duration: 480 },
+        { id: 'kk2NlNd7c04', title: 'Building Sentences', duration: 540 },
+        { id: 'uR5pTiFV_Uc', title: 'Vocabulary Building', duration: 420 },
       ],
       hard: [
-        { videoId: 'crfvqKKMpZM', title: 'Advanced Grammar' },
-        { videoId: 'jNQXAC9IVRw', title: 'Complex Sentence Structure' },
-        { videoId: 'dQw4w9WgXcQ', title: 'Literary Analysis' },
+        { id: 'PYnWwBjJVmE', title: 'Advanced Writing Skills', duration: 600 },
+        { id: '9S7eFDDMfMA', title: 'Reading Comprehension Strategies', duration: 540 },
+        { id: 'dQw4w9WgXcQ', title: 'Literary Analysis Basics', duration: 480 },
       ],
     },
     vocabulary: {
       easy: [
-        { videoId: '9bZkp7q19f0', title: 'New Words for Beginners' },
-        { videoId: 'jNQXAC9IVRw', title: 'Learning Synonyms' },
-        { videoId: 'crfvqKKMpZM', title: 'Word Meanings' },
+        { id: '1aVy30s-3b8', title: 'Learning New Words', duration: 360 },
+        { id: 'vEBT34t0yyY', title: 'Word Meanings for Beginners', duration: 300 },
+        { id: '30gEiweaAVQ', title: 'Building Basic Vocabulary', duration: 420 },
       ],
       normal: [
-        { videoId: 'dQw4w9WgXcQ', title: 'Expand Your Vocabulary' },
-        { videoId: 'vVk3xqsabX8', title: 'Word Relationships' },
-        { videoId: 'OPf0YbXqDm0', title: 'Context and Meaning' },
+        { id: 'kk2NlNd7c04', title: 'Expanding Your Vocabulary', duration: 480 },
+        { id: 'T5_E0YEhqzM', title: 'Understanding Word Relationships', duration: 540 },
+        { id: 'uR5pTiFV_Uc', title: 'Context and Word Meaning', duration: 420 },
       ],
       hard: [
-        { videoId: 'jNQXAC9IVRw', title: 'Advanced Vocabulary' },
-        { videoId: 'crfvqKKMpZM', title: 'Etymology and Word Origins' },
-        { videoId: 'dQw4w9WgXcQ', title: 'Nuanced Word Meanings' },
+        { id: 'dQw4w9WgXcQ', title: 'Advanced Vocabulary and Etymology', duration: 600 },
+        { id: '9S7eFDDMfMA', title: 'Nuanced Word Meanings', duration: 540 },
+        { id: 'PYnWwBjJVmE', title: 'Academic Vocabulary', duration: 480 },
       ],
     },
     reading: {
       easy: [
-        { videoId: 'crfvqKKMpZM', title: 'Beginning Reading' },
-        { videoId: '9bZkp7q19f0', title: 'Sound Out Words' },
-        { videoId: 'jNQXAC9IVRw', title: 'Basic Stories' },
+        { id: '1aVy30s-3b8', title: 'Beginning Reading', duration: 360 },
+        { id: 'vEBT34t0yyY', title: 'Phonics Fundamentals', duration: 300 },
+        { id: '30gEiweaAVQ', title: 'Simple Story Reading', duration: 420 },
       ],
       normal: [
-        { videoId: 'dQw4w9WgXcQ', title: 'Comprehension Skills' },
-        { videoId: 'OPf0YbXqDm0', title: 'Reading Fluency' },
-        { videoId: 'vVk3xqsabX8', title: 'Understanding Text' },
+        { id: 'kk2NlNd7c04', title: 'Reading Fluency', duration: 480 },
+        { id: 'T5_E0YEhqzM', title: 'Understanding Text', duration: 540 },
+        { id: 'uR5pTiFV_Uc', title: 'Comprehension Skills', duration: 420 },
       ],
       hard: [
-        { videoId: 'jNQXAC9IVRw', title: 'Critical Reading' },
-        { videoId: 'crfvqKKMpZM', title: 'Text Analysis' },
-        { videoId: 'dQw4w9WgXcQ', title: 'Inference and Prediction' },
+        { id: 'dQw4w9WgXcQ', title: 'Critical Reading Analysis', duration: 600 },
+        { id: '9S7eFDDMfMA', title: 'Inferential Reading', duration: 540 },
+        { id: 'PYnWwBjJVmE', title: 'Advanced Text Study', duration: 480 },
       ],
     },
     science: {
       easy: [
-        { videoId: '9bZkp7q19f0', title: 'Science Basics for Kids' },
-        { videoId: 'jNQXAC9IVRw', title: 'Exploring Nature' },
-        { videoId: 'crfvqKKMpZM', title: 'Simple Experiments' },
+        { id: 'LzXJ0ysNlpk', title: 'Science Basics for Kids', duration: 360 },
+        { id: 'FyFJEMF0bpA', title: 'Exploring Nature', duration: 420 },
+        { id: 'nKIu9yen5nc', title: 'Simple Experiments', duration: 300 },
       ],
       normal: [
-        { videoId: 'dQw4w9WgXcQ', title: 'Life Science Explained' },
-        { videoId: 'vVk3xqsabX8', title: 'Understanding Ecosystems' },
-        { videoId: 'OPf0YbXqDm0', title: 'Introduction to Physics' },
+        { id: 'bC_Kqd9P0vk', title: 'Life Science Concepts', duration: 480 },
+        { id: '5hVm5p59OEo', title: 'Understanding Ecosystems', duration: 540 },
+        { id: 'GgLM2N7__tw', title: 'Physics for Kids', duration: 420 },
       ],
       hard: [
-        { videoId: 'crfvqKKMpZM', title: 'Advanced Science Concepts' },
-        { videoId: 'jNQXAC9IVRw', title: 'Scientific Method' },
-        { videoId: 'dQw4w9WgXcQ', title: 'Complex Experiments' },
+        { id: 'N-2vTEy3-6Q', title: 'Advanced Science Concepts', duration: 600 },
+        { id: 'kQSq5WnVy_M', title: 'Scientific Method', duration: 540 },
+        { id: '99dVwvKqY78', title: 'Complex Experiments', duration: 480 },
       ],
     },
   };
 
   try {
-    const subjectPool = videoPools[subject.toLowerCase()] || videoPools.vocabulary;
-    const difficultyVideos = subjectPool[difficulty_band] || subjectPool.normal;
+    const subjectLower = subject.toLowerCase();
+    const diffBandLower = difficulty_band.toLowerCase();
+
+    const subjectVideos = WHITELIST[subjectLower];
+    
+    if (!subjectVideos) {
+      console.log(`❌ Subject not in whitelist: ${subject}`);
+      return res.status(200).json({
+        success: false,
+        error: `Subject "${subject}" not found in whitelist`,
+      });
+    }
+
+    const difficultyVideos = subjectVideos[diffBandLower];
 
     if (!difficultyVideos || difficultyVideos.length === 0) {
-      console.log(`⚠️ No videos found for ${subject}/${difficulty_band}, using fallback`);
-      return returnFallback(res, subject, difficulty_band);
+      console.log(`❌ No videos for ${subject}/${difficulty_band}`);
+      return res.status(200).json({
+        success: false,
+        error: `No approved videos for ${subject}/${difficulty_band}`,
+      });
     }
 
-    let selectedVideo = difficultyVideos[Math.floor(Math.random() * difficultyVideos.length)];
+    const randomIndex = Math.floor(Math.random() * difficultyVideos.length);
+    const selectedVideo = difficultyVideos[randomIndex];
 
-    if (lastVideoId && selectedVideo.videoId === lastVideoId && difficultyVideos.length > 1) {
-      const alternatives = difficultyVideos.filter(v => v.videoId !== lastVideoId);
-      if (alternatives.length > 0) {
-        selectedVideo = alternatives[Math.floor(Math.random() * alternatives.length)];
-        console.log(`✅ Avoided repetition, selected different video`);
-      }
-    }
-
-    console.log(`✅ SELECTED VIDEO!`);
+    console.log(`✅ VIDEO SELECTED (WHITELIST)`);
+    console.log(`   ID: ${selectedVideo.id}`);
     console.log(`   Title: "${selectedVideo.title}"`);
-    console.log(`   ID: ${selectedVideo.videoId}`);
+    console.log(`   Duration: ${selectedVideo.duration}s`);
     console.log(`${'='.repeat(70)}\n`);
 
     return res.status(200).json({
       success: true,
+      videoId: selectedVideo.id,
       title: selectedVideo.title,
-      videoId: selectedVideo.videoId,
-      subject: subject.toLowerCase(),
-      difficulty_band: difficulty_band,
+      duration: selectedVideo.duration,
+      subject: subjectLower,
+      difficulty_band: diffBandLower,
+      whitelistApproved: true,
     });
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    return returnFallback(res, subject, difficulty_band);
+    console.error(`❌ Error: ${error.message}`);
+    console.log(`${'='.repeat(70)}\n`);
+    
+    return res.status(200).json({
+      success: false,
+      error: 'Internal error',
+    });
   }
-}
-
-function returnFallback(res, subject, difficulty_band) {
-  const fallbacks = {
-    math: 'Learn Basic Math',
-    english: 'English Learning',
-    vocabulary: 'Build Your Vocabulary',
-    reading: 'Reading Practice',
-    science: 'Discover Science',
-  };
-
-  const fallbackTitle = fallbacks[subject.toLowerCase()] || `Learn ${subject}`;
-
-  console.log(`🎬 Using fallback for ${subject}/${difficulty_band}`);
-  console.log(`${'='.repeat(70)}\n`);
-
-  return res.status(200).json({
-    success: true,
-    title: fallbackTitle,
-    videoId: 'crfvqKKMpZM',
-    subject: subject.toLowerCase(),
-    difficulty_band: difficulty_band,
-    isFallback: true,
-  });
 }
