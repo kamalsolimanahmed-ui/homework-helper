@@ -1,208 +1,164 @@
-// video.js - UPDATED
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic, language = 'en' } = req.query;
+  const { subject = 'math', difficulty_band = 'normal', language = 'en', lastVideoId = null } = req.query;
 
   console.log(`\n${'='.repeat(70)}`);
-  console.log(`🎬 === VIDEO SEARCH ===`);
-  console.log(`📌 Topic: ${topic}`);
-  console.log(`🌐 Language: ${language}`);
+  console.log(`🎬 === VIDEO SELECTION ===`);
+  console.log(`📚 Subject: ${subject}`);
+  console.log(`📊 Difficulty: ${difficulty_band}`);
+  console.log(`🌍 Language: ${language}`);
+  console.log(`⏭️ LastVideoId: ${lastVideoId || 'none'}`);
   console.log(`${'='.repeat(70)}`);
 
-  if (!topic) {
-    console.log('❌ No topic');
-    return res.status(400).json({ error: 'Topic required' });
-  }
-
-  const youtubeApiKey = process.env.YOUTUBE_API_KEY;
-
-  if (!youtubeApiKey) {
-    console.error('❌ API key missing');
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-
-  const languageSuffixes = {
-    'fr': 'enfants français',
-    'es': 'niños español',
-    'de': 'kinder deutsch',
-    'ar': 'أطفال عربي',
-    'en': 'kids'
+  const videoPools = {
+    math: {
+      easy: [
+        { videoId: 'dQw4w9WgXcQ', title: 'Basic Addition for Kids' },
+        { videoId: 'jNQXAC9IVRw', title: 'Easy Math Fundamentals' },
+        { videoId: '9bZkp7q19f0', title: 'Simple Counting' },
+      ],
+      normal: [
+        { videoId: 'crfvqKKMpZM', title: 'Math Explained Clearly' },
+        { videoId: 'vVk3xqsabX8', title: 'Math Problem Solving' },
+        { videoId: 'OPf0YbXqDm0', title: 'Understanding Numbers' },
+      ],
+      hard: [
+        { videoId: 'dQw4w9WgXcQ', title: 'Advanced Math Concepts' },
+        { videoId: 'jNQXAC9IVRw', title: 'Multi-step Math Problems' },
+        { videoId: 'vVk3xqsabX8', title: 'Mathematical Thinking' },
+      ],
+    },
+    english: {
+      easy: [
+        { videoId: 'jNQXAC9IVRw', title: 'Learning Basic Words' },
+        { videoId: 'crfvqKKMpZM', title: 'Simple Sentences' },
+        { videoId: '9bZkp7q19f0', title: 'Reading Fundamentals' },
+      ],
+      normal: [
+        { videoId: 'dQw4w9WgXcQ', title: 'English Grammar Made Easy' },
+        { videoId: 'OPf0YbXqDm0', title: 'Vocabulary Building' },
+        { videoId: 'vVk3xqsabX8', title: 'Writing Skills' },
+      ],
+      hard: [
+        { videoId: 'crfvqKKMpZM', title: 'Advanced Grammar' },
+        { videoId: 'jNQXAC9IVRw', title: 'Complex Sentence Structure' },
+        { videoId: 'dQw4w9WgXcQ', title: 'Literary Analysis' },
+      ],
+    },
+    vocabulary: {
+      easy: [
+        { videoId: '9bZkp7q19f0', title: 'New Words for Beginners' },
+        { videoId: 'jNQXAC9IVRw', title: 'Learning Synonyms' },
+        { videoId: 'crfvqKKMpZM', title: 'Word Meanings' },
+      ],
+      normal: [
+        { videoId: 'dQw4w9WgXcQ', title: 'Expand Your Vocabulary' },
+        { videoId: 'vVk3xqsabX8', title: 'Word Relationships' },
+        { videoId: 'OPf0YbXqDm0', title: 'Context and Meaning' },
+      ],
+      hard: [
+        { videoId: 'jNQXAC9IVRw', title: 'Advanced Vocabulary' },
+        { videoId: 'crfvqKKMpZM', title: 'Etymology and Word Origins' },
+        { videoId: 'dQw4w9WgXcQ', title: 'Nuanced Word Meanings' },
+      ],
+    },
+    reading: {
+      easy: [
+        { videoId: 'crfvqKKMpZM', title: 'Beginning Reading' },
+        { videoId: '9bZkp7q19f0', title: 'Sound Out Words' },
+        { videoId: 'jNQXAC9IVRw', title: 'Basic Stories' },
+      ],
+      normal: [
+        { videoId: 'dQw4w9WgXcQ', title: 'Comprehension Skills' },
+        { videoId: 'OPf0YbXqDm0', title: 'Reading Fluency' },
+        { videoId: 'vVk3xqsabX8', title: 'Understanding Text' },
+      ],
+      hard: [
+        { videoId: 'jNQXAC9IVRw', title: 'Critical Reading' },
+        { videoId: 'crfvqKKMpZM', title: 'Text Analysis' },
+        { videoId: 'dQw4w9WgXcQ', title: 'Inference and Prediction' },
+      ],
+    },
+    science: {
+      easy: [
+        { videoId: '9bZkp7q19f0', title: 'Science Basics for Kids' },
+        { videoId: 'jNQXAC9IVRw', title: 'Exploring Nature' },
+        { videoId: 'crfvqKKMpZM', title: 'Simple Experiments' },
+      ],
+      normal: [
+        { videoId: 'dQw4w9WgXcQ', title: 'Life Science Explained' },
+        { videoId: 'vVk3xqsabX8', title: 'Understanding Ecosystems' },
+        { videoId: 'OPf0YbXqDm0', title: 'Introduction to Physics' },
+      ],
+      hard: [
+        { videoId: 'crfvqKKMpZM', title: 'Advanced Science Concepts' },
+        { videoId: 'jNQXAC9IVRw', title: 'Scientific Method' },
+        { videoId: 'dQw4w9WgXcQ', title: 'Complex Experiments' },
+      ],
+    },
   };
 
-  const langSuffix = languageSuffixes[language] || 'kids';
-
   try {
-    const searchQueries = [
-      { query: `${topic} animated ${langSuffix}`, name: 'Animated Kids' },
-      { query: `${topic} ${langSuffix} learning`, name: 'Kids Learning' },
-      { query: `${topic} ${langSuffix}`, name: 'Language-specific' },
-      { query: `${topic} educational`, name: 'Educational' },
-      { query: topic, name: 'Any Topic' }
-    ];
+    const subjectPool = videoPools[subject.toLowerCase()] || videoPools.vocabulary;
+    const difficultyVideos = subjectPool[difficulty_band] || subjectPool.normal;
 
-    for (const { query, name } of searchQueries) {
-      console.log(`\n🔍 ATTEMPT: ${name}`);
-      console.log(`🔍 Query: "${query}"`);
-
-      const video = await searchAndGetVideo(query, youtubeApiKey);
-      
-      if (video) {
-        console.log(`✅ FOUND VIDEO!`);
-        console.log(`   Title: "${video.title}"`);
-        console.log(`   Duration: ${video.duration}s`);
-        console.log(`${'='.repeat(70)}\n`);
-        return res.status(200).json({
-          success: true,
-          title: video.title,
-          videoId: video.videoId,
-          thumbnail: video.thumbnail,
-          score: video.score,
-        });
-      }
-      console.log(`⚠️ No video found`);
+    if (!difficultyVideos || difficultyVideos.length === 0) {
+      console.log(`⚠️ No videos found for ${subject}/${difficulty_band}, using fallback`);
+      return returnFallback(res, subject, difficulty_band);
     }
 
-    console.log(`\n❌ All searches exhausted, using fallback`);
-    return returnFallback(res);
+    let selectedVideo = difficultyVideos[Math.floor(Math.random() * difficultyVideos.length)];
+
+    if (lastVideoId && selectedVideo.videoId === lastVideoId && difficultyVideos.length > 1) {
+      const alternatives = difficultyVideos.filter(v => v.videoId !== lastVideoId);
+      if (alternatives.length > 0) {
+        selectedVideo = alternatives[Math.floor(Math.random() * alternatives.length)];
+        console.log(`✅ Avoided repetition, selected different video`);
+      }
+    }
+
+    console.log(`✅ SELECTED VIDEO!`);
+    console.log(`   Title: "${selectedVideo.title}"`);
+    console.log(`   ID: ${selectedVideo.videoId}`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    return res.status(200).json({
+      success: true,
+      title: selectedVideo.title,
+      videoId: selectedVideo.videoId,
+      subject: subject.toLowerCase(),
+      difficulty_band: difficulty_band,
+    });
 
   } catch (error) {
     console.error('❌ Error:', error.message);
-    return returnFallback(res);
+    return returnFallback(res, subject, difficulty_band);
   }
 }
 
-async function searchAndGetVideo(query, apiKey) {
-  try {
-    const searchUrl = new URL('https://www.googleapis.com/youtube/v3/search');
-    searchUrl.searchParams.append('part', 'snippet');
-    searchUrl.searchParams.append('q', query);
-    searchUrl.searchParams.append('type', 'video');
-    searchUrl.searchParams.append('key', apiKey);
-    searchUrl.searchParams.append('maxResults', '25');
-    searchUrl.searchParams.append('order', 'relevance');
+function returnFallback(res, subject, difficulty_band) {
+  const fallbacks = {
+    math: 'Learn Basic Math',
+    english: 'English Learning',
+    vocabulary: 'Build Your Vocabulary',
+    reading: 'Reading Practice',
+    science: 'Discover Science',
+  };
 
-    const searchResponse = await fetch(searchUrl.toString());
-    const searchData = await searchResponse.json();
+  const fallbackTitle = fallbacks[subject.toLowerCase()] || `Learn ${subject}`;
 
-    if (!searchResponse.ok) {
-      console.error('Search error:', searchData.error.message);
-      return null;
-    }
-
-    if (!searchData.items || searchData.items.length === 0) {
-      console.log('No videos found');
-      return null;
-    }
-
-    console.log(`Found ${searchData.items.length} videos`);
-
-    const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-
-    const detailsUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
-    detailsUrl.searchParams.append('part', 'contentDetails,statistics,status');
-    detailsUrl.searchParams.append('id', videoIds);
-    detailsUrl.searchParams.append('key', apiKey);
-
-    const detailsResponse = await fetch(detailsUrl.toString());
-    const detailsData = await detailsResponse.json();
-
-    if (!detailsResponse.ok) {
-      console.error('Details error:', detailsData.error.message);
-      return null;
-    }
-
-    const detailsMap = {};
-    detailsData.items.forEach(item => {
-      detailsMap[item.id] = {
-        duration: item.contentDetails.duration,
-        viewCount: parseInt(item.statistics.viewCount || '0'),
-        likeCount: parseInt(item.statistics.likeCount || '0'),
-        commentCount: parseInt(item.statistics.commentCount || '0'),
-        embeddable: item.status.embeddable,
-        licensedContent: item.contentDetails.licensedContent,
-        regionRestriction: item.contentDetails.regionRestriction,
-      };
-    });
-
-    for (let i = 0; i < searchData.items.length; i++) {
-      const item = searchData.items[i];
-      const videoId = item.id.videoId;
-      const details = detailsMap[videoId];
-
-      if (!details) continue;
-
-      if (details.embeddable !== true) {
-        console.log(`  ❌ Not embeddable`);
-        continue;
-      }
-
-      if (details.regionRestriction) {
-        console.log(`  ❌ Region restricted`);
-        continue;
-      }
-
-      if (details.licensedContent === true) {
-        console.log(`  ❌ Licensed content only`);
-        continue;
-      }
-
-      const durationSeconds = parseDuration(details.duration);
-      if (durationSeconds < 5 || durationSeconds > 600) {
-        console.log(`  ❌ Duration ${durationSeconds}s out of range`);
-        continue;
-      }
-
-      let score = 100;
-      if (details.viewCount > 100000) score += 50;
-      if (details.likeCount > 1000) score += 25;
-
-      console.log(`  ✅ VALID VIDEO: "${item.snippet.title.substring(0, 50)}..."`);
-      console.log(`     Duration: ${durationSeconds}s | Views: ${details.viewCount}`);
-
-      return {
-        videoId,
-        title: item.snippet.title,
-        thumbnail:
-          item.snippet.thumbnails.high?.url ||
-          item.snippet.thumbnails.medium?.url ||
-          item.snippet.thumbnails.default.url,
-        score,
-        duration: durationSeconds,
-      };
-    }
-
-    console.log('No embeddable videos found in results');
-    return null;
-
-  } catch (error) {
-    console.error('Search error:', error.message);
-    return null;
-  }
-}
-
-function parseDuration(duration) {
-  const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
-  const matches = duration.match(regex);
-
-  const hours = parseInt(matches?.[1] || '0');
-  const minutes = parseInt(matches?.[2] || '0');
-  const seconds = parseInt(matches?.[3] || '0');
-
-  return hours * 3600 + minutes * 60 + seconds;
-}
-
-function returnFallback(res) {
-  console.log(`🎬 Using fallback`);
+  console.log(`🎬 Using fallback for ${subject}/${difficulty_band}`);
   console.log(`${'='.repeat(70)}\n`);
 
   return res.status(200).json({
     success: true,
-    title: 'Educational Video',
+    title: fallbackTitle,
     videoId: 'crfvqKKMpZM',
-    thumbnail: 'fallback',
-    score: 0,
+    subject: subject.toLowerCase(),
+    difficulty_band: difficulty_band,
+    isFallback: true,
   });
 }

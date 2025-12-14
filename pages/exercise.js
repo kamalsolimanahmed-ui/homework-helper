@@ -12,6 +12,30 @@ const translations = {
 
 const gradeLevelLabels = { 0: 'K', 1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: '5th', 6: '6th', 7: '7th', 8: '8th', 9: '9th', 10: '10th' };
 
+function getDifficultyBand(level) {
+  if (level <= 2) return 'easy';
+  if (level <= 6) return 'normal';
+  return 'hard';
+}
+
+function getSubjectFromTopic(topic) {
+  const subjectMap = {
+    addition: 'math',
+    subtraction: 'math',
+    multiplication: 'math',
+    division: 'math',
+    reading: 'english',
+    vocabulary: 'english',
+    grammar: 'english',
+    phonics: 'english',
+    french: 'french',
+    spanish: 'spanish',
+    german: 'german',
+    arabic: 'arabic',
+  };
+  return subjectMap[topic?.toLowerCase()] || 'vocabulary';
+}
+
 export default function Exercise() {
   const router = useRouter();
   const { topic = 'addition', language = 'en', level: initialLevel = '2' } = router.query;
@@ -24,7 +48,24 @@ export default function Exercise() {
   const [score, setScore] = useState(null);
   const [error, setError] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(parseInt(initialLevel) || 2);
-  const [templateId, setTemplateId] = useState(0);
+  const [templateFamily, setTemplateFamily] = useState('');
+  const [videoData, setVideoData] = useState(null);
+  const [lastVideoId, setLastVideoId] = useState(null);
+
+  async function fetchVideo(subject, difficultyBand, lastId) {
+    try {
+      const res = await fetch(
+        `/api/video?subject=${subject}&difficulty_band=${difficultyBand}&lastVideoId=${lastId || ''}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        setVideoData(data);
+        setLastVideoId(data.videoId);
+      }
+    } catch (err) {
+      console.error('Video fetch error:', err);
+    }
+  }
 
   useEffect(() => {
     if (!topic || !language) return;
@@ -40,22 +81,24 @@ export default function Exercise() {
         const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
 
         const res = await fetch(
-          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&template_id=${templateId}&problems=${encodeURIComponent(problemsParam)}`
+          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&problems=${encodeURIComponent(problemsParam)}`
         );
 
         if (!res.ok) throw new Error(t.fetchError);
 
         const data = await res.json();
         setGame(data);
-        setTemplateId(data.template_id);
+        setTemplateFamily(data.template_name || '');
         setError(null);
 
-        // PERSIST LEVEL TO LEARNING HISTORY
         const history = JSON.parse(localStorage.getItem('learningHistory') || '{}');
         history.last_level = currentLevel;
-        history.last_template_id = data.template_id;
         history.updated_at = new Date().toISOString();
         localStorage.setItem('learningHistory', JSON.stringify(history));
+
+        const subject = getSubjectFromTopic(topic);
+        const diffBand = getDifficultyBand(currentLevel);
+        await fetchVideo(subject, diffBand, lastVideoId);
       } catch (err) {
         console.error('Game fetch error:', err);
         setError(t.fetchError);
@@ -66,7 +109,7 @@ export default function Exercise() {
     }
 
     fetchGame();
-  }, [topic, language, currentLevel, templateId, t]);
+  }, [topic, language, currentLevel, t]);
 
   function handleDragStart(e, pair) {
     setDraggedItem(pair);
@@ -128,11 +171,15 @@ export default function Exercise() {
   function handleChangeLevel(newLevel) {
     if (newLevel >= 0 && newLevel <= 10 && newLevel !== currentLevel) {
       setCurrentLevel(newLevel);
+      const subject = getSubjectFromTopic(topic);
+      const diffBand = getDifficultyBand(newLevel);
+      fetchVideo(subject, diffBand, lastVideoId);
     }
   }
 
   const canLowerLevel = currentLevel > 0;
   const canRaiseLevel = currentLevel < 10;
+  const difficultyBand = getDifficultyBand(currentLevel);
 
   if (loading) {
     return (
@@ -187,13 +234,13 @@ export default function Exercise() {
           <p className="text-xl text-gray-300">{game.instructions}</p>
         </div>
 
-        {game.video && game.video.success && (
+        {videoData && videoData.success && (
           <div className="mb-8 bg-slate-800 rounded-xl p-6 border-2 border-yellow-400">
             <h2 className="text-2xl font-bold text-yellow-400 mb-4">🎬 Learn More</h2>
             <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
-              <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${game.video.videoId}`} title={game.video.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe>
+              <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${videoData.videoId}`} title={videoData.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe>
             </div>
-            <p className="text-gray-300 text-center">{game.video.title}</p>
+            <p className="text-gray-300 text-center">{videoData.title}</p>
           </div>
         )}
 
@@ -236,7 +283,7 @@ export default function Exercise() {
         <div className="text-center text-gray-400 text-sm">
           <p>{t.theme}: {game.theme}</p>
           <p>{t.topic}: {game.topic}</p>
-          <p className="text-yellow-300 mt-2">{t.levelLabel}: {gradeLevelLabels[currentLevel]} | Template: {game.template_name}</p>
+          <p className="text-yellow-300 mt-2">{t.levelLabel}: {gradeLevelLabels[currentLevel]} | Template: {templateFamily} | Difficulty: {difficultyBand}</p>
         </div>
       </div>
     </div>
