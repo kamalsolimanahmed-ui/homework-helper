@@ -515,11 +515,11 @@ export default async function handler(req, res) {
 
     console.log(`🔍 Looking up: ${subjectLower}/${diffBandLower}`);
 
-    const subjectVideos = WHITELIST[subjectLower];
+    const subjectVideos = KIDS_SAFE_WHITELIST[subjectLower];
     
     if (!subjectVideos) {
       console.log(`⚠️ Subject "${subjectLower}" not found. Using vocabulary default.`);
-      const fallbackVideos = WHITELIST.vocabulary[diffBandLower] || WHITELIST.vocabulary.normal;
+      const fallbackVideos = KIDS_SAFE_WHITELIST.vocabulary[diffBandLower] || KIDS_SAFE_WHITELIST.vocabulary.normal;
       const video = selectRandomVideo(fallbackVideos);
       return respondWithVideo(res, video, 'vocabulary', diffBandLower, true);
     }
