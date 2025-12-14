@@ -3,16 +3,39 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic = 'addition', language = 'en', difficulty = 'auto', problems = '' } = req.query;
+  const { topic = 'addition', language = 'en', difficulty = 'auto', math_level = null, level = '2', problems = '' } = req.query;
 
   if (!topic) {
     return res.status(400).json({ error: 'Topic is required' });
   }
 
   try {
-    const finalDifficulty = difficulty === 'auto' 
-      ? detectDifficulty(problems, topic)
-      : difficulty;
+    // ============================================
+    // CONVERT math_level TO difficulty
+    // ============================================
+    let finalDifficulty;
+
+    if (math_level) {
+      // math_level takes priority: early/basic/normal/advanced
+      console.log(`📊 Using detected math_level: ${math_level}`);
+      if (math_level === 'early' || math_level === 'basic') {
+        finalDifficulty = 'easy';
+      } else if (math_level === 'normal') {
+        finalDifficulty = 'medium';
+      } else if (math_level === 'advanced') {
+        finalDifficulty = 'hard';
+      } else {
+        finalDifficulty = 'medium'; // fallback
+      }
+    } else if (difficulty && difficulty !== 'auto') {
+      // Explicit difficulty parameter
+      finalDifficulty = difficulty;
+    } else {
+      // Auto-detect from problems
+      finalDifficulty = detectDifficulty(problems, topic);
+    }
+
+    console.log(`🎮 Final difficulty for generation: ${finalDifficulty}`);
 
     const game = generateArcadeGame(topic, language, finalDifficulty);
     
@@ -210,7 +233,7 @@ function generateSubtractionPairs(difficulty) {
       { left: '750 - 428', right: '322' },
       { left: '823 - 467', right: '356' },
       { left: '912 - 589', right: '323' },
-      { left: '645 - 234', right: '411' }
+      { left: '645 - 378', right: '267' }
     ];
   } else if (difficulty === 'easy') {
     return [

@@ -78,10 +78,13 @@ export default function Exercise() {
         setDraggedItem(null);
 
         const saved = localStorage.getItem('homeworkResult');
+        const detectedMathLevel = saved ? JSON.parse(saved).detected_math_level : 'basic';
         const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
 
+        console.log(`📊 Detected math level: ${detectedMathLevel}`);
+
         const res = await fetch(
-          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&problems=${encodeURIComponent(problemsParam)}`
+          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&math_level=${detectedMathLevel}&problems=${encodeURIComponent(problemsParam)}`
         );
 
         if (!res.ok) throw new Error(t.fetchError);

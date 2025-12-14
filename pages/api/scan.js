@@ -1,4 +1,5 @@
 const busboy = require('busboy');
+import { detectMathLevel } from '../../lib/detectMathLevel';
 
 export const config = {
   api: {
@@ -8,7 +9,7 @@ export const config = {
 
 async function extractTextFromImage(imageBase64) {
   try {
-    console.log('📸 Sending image to OpenAI Vision API for text extraction...');
+    console.log('🖼️ Sending image to OpenAI Vision API for text extraction...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -48,7 +49,7 @@ async function extractTextFromImage(imageBase64) {
 
     const extractedText = data.choices[0].message.content;
     console.log('✅ Text extracted from image');
-    console.log(`📝 Extracted length: ${extractedText.length} characters`);
+    console.log(`📄 Extracted length: ${extractedText.length} characters`);
     return extractedText;
   } catch (error) {
     console.error('❌ OCR Error:', error);
@@ -160,7 +161,7 @@ FORMAT - Return ONLY valid JSON (no markdown):
     }
 
     const responseText = data.choices[0].message.content;
-    console.log('📥 Response received, parsing...');
+    console.log('🔥 Response received, parsing...');
 
     let explanation;
     try {
@@ -246,10 +247,19 @@ FORMAT - Return ONLY valid JSON (no markdown):
     }
 
     explanation.topic = finalTopic;
-    console.log(`   📌 FINAL TOPIC: "${finalTopic}"\n`);
+    console.log(`   🔑 FINAL TOPIC: "${finalTopic}"\n`);
+
+    // ============================================
+    // ADD MATH LEVEL DETECTION
+    // ============================================
+    console.log(`\n🔢 MATH LEVEL DETECTION`);
+    const mathLevel = detectMathLevel(homeworkText);
+    console.log(`   Detected math level: ${mathLevel}\n`);
+    explanation.detected_math_level = mathLevel;
 
     console.log('✅ All problems solved successfully!');
     console.log(`📚 Topic: ${explanation.topic}`);
+    console.log(`📊 Math Level: ${explanation.detected_math_level}`);
     return explanation;
   } catch (error) {
     console.error('❌ Error generating explanations:', error);
@@ -267,7 +277,7 @@ export default async function handler(req, res) {
 
   console.log(`\n${'='.repeat(70)}`);
   console.log(`📋 NEW REQUEST - ${new Date().toLocaleTimeString()}`);
-  console.log(`🔹 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
+  console.log(`🏹 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
   console.log(`${'='.repeat(70)}`);
 
   try {
@@ -306,7 +316,7 @@ export default async function handler(req, res) {
           }
 
           const imageBase64 = imageBuffer.toString('base64');
-          console.log(`📸 Processing image (${imageBuffer.length} bytes)...`);
+          console.log(`🖼️ Processing image (${imageBuffer.length} bytes)...`);
 
           // EXTRACT TEXT
           const extractedText = await extractTextFromImage(imageBase64);
@@ -332,6 +342,7 @@ export default async function handler(req, res) {
             detailed_steps: explanation.detailed_steps,
             fun_tip: explanation.fun_tip,
             topic: explanation.topic,
+            detected_math_level: explanation.detected_math_level,
             mode: parent ? 'parent' : 'kid',
           });
         } catch (error) {
