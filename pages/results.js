@@ -1,287 +1,157 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 
-function getSubjectFromTopic(topic) {
-  const subjectMap = {
-    addition: 'math',
-    subtraction: 'math',
-    multiplication: 'math',
-    division: 'math',
-    reading: 'english',
-    vocabulary: 'english',
-    grammar: 'english',
-    phonics: 'english',
-    french: 'french',
-    spanish: 'spanish',
-    german: 'german',
-    arabic: 'arabic',
-  };
-  return subjectMap[topic?.toLowerCase()] || 'vocabulary';
-}
+export const config = { ssr: false };
+
+const translations = {
+  en: { goHome: '🏠 Home', backButton: '← Back' },
+  fr: { goHome: '🏠 Accueil', backButton: '← Retour' },
+  es: { goHome: '🏠 Inicio', backButton: '← Atrás' }
+};
 
 export default function Results() {
+  const router = useRouter();
+  const language = router.query.language || 'en';
+  const t = translations[language] || translations.en;
+
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [video, setVideo] = useState(null);
-  const [videoLoading, setVideoLoading] = useState(false);
-  const router = useRouter();
+  const [showGame, setShowGame] = useState(false);
+  const [showGameIntro, setShowGameIntro] = useState(false);
+  const [played, setPlayed] = useState(false);
+  const [justPlayed, setJustPlayed] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("homeworkResult");
-
-    if (!saved) {
-      router.push("/");
-      return;
-    }
-
-    const resultData = JSON.parse(saved);
-    setResult(resultData);
-    setLoading(false);
-
-    if (resultData.topic && resultData.topic !== "unknown") {
-      fetchVideo(resultData.topic);
-    }
-  }, [router]);
-
-  async function fetchVideo(topic) {
     try {
-      setVideoLoading(true);
-      const subject = getSubjectFromTopic(topic);
-
-      console.log(`🎬 Fetching video for: ${topic} → subject: ${subject}`);
-
-      const res = await fetch(
-        `/api/video?subject=${encodeURIComponent(subject)}&difficulty_band=normal`
-      );
-      const data = await res.json();
-
-      if (!data.success) {
-        console.warn(`⚠️ Video not available: ${data.error}`);
-        setVideoLoading(false);
-        return;
+      const saved = localStorage.getItem('homeworkResult');
+      if (saved) {
+        setResult(JSON.parse(saved));
       }
-
-      console.log(`✅ Video found: ${data.title} (Creator: ${data.creator})`);
-      setVideo(data);
-      setVideoLoading(false);
-    } catch (error) {
-      console.error("❌ Video error:", error);
-      setVideoLoading(false);
+    } catch (err) {
+      console.error('Error loading result:', err);
+    } finally {
+      setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!result) return;
+    const key = `played_${result.id || result.topic}`;
+    setPlayed(!!localStorage.getItem(key));
+  }, [result]);
+
+  useEffect(() => {
+    document.body.style.overflow = (showGameIntro || showGame) ? "hidden" : "";
+    return () => (document.body.style.overflow = "");
+  }, [showGameIntro, showGame]);
+
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.href = "/game.html";
+    document.head.appendChild(link);
+    return () => document.head.removeChild(link);
+  }, []);
+
+  const exitGame = () => {
+    setShowGame(false);
+    setShowGameIntro(false);
+    setPlayed(true);
+    setJustPlayed(true);
+    if (result) {
+      localStorage.setItem(`played_${result.id || result.topic}`, "1");
+    }
+    setTimeout(() => setJustPlayed(false), 1000);
+  };
+
+  useEffect(() => {
+    if (!showGame) return;
+    const timer = setTimeout(() => {
+      exitGame();
+    }, 60_000);
+    return () => clearTimeout(timer);
+  }, [showGame, result]);
+
+  useEffect(() => {
+    if (!showGame || !result) return;
+    const iframe = document.querySelector("iframe");
+    iframe?.contentWindow?.postMessage(
+      { level: result.level, subject: result.subject, lang: language },
+      "*"
+    );
+  }, [showGame, result, language]);
 
   if (loading) {
-    return (
-      <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="text-6xl mb-4">⏳</div>
-          <p className="text-2xl font-bold">Loading your answers...</p>
-        </div>
-      </div>
-    );
+    return <div className="w-full min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center"><p className="text-white text-2xl">Loading...</p></div>;
   }
 
   if (!result) {
+    return <div className="w-full min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 flex items-center justify-center"><p className="text-white text-2xl">No results found</p></div>;
+  }
+
+  const gameKey = result.subject === "math" ? "tap-answer" : "match-words";
+
+  const gameLabel =
+    result.level === "early" || result.level === "basic"
+      ? "Play a Fun Game 🎮"
+      : "Play a Quick Game 🎮";
+
+  if (showGameIntro) {
     return (
-      <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black flex items-center justify-center">
-        <div className="text-white text-center">
-          <p className="text-2xl mb-4">❌ No homework data found</p>
-          <Link href="/">
-            <button className="px-6 py-3 bg-yellow-400 text-black font-bold rounded-lg hover:bg-yellow-500">
-              Go Back Home
-            </button>
-          </Link>
+      <div className="w-full h-screen bg-black flex flex-col items-center justify-center p-6">
+        <img src="/images/intro-bg.png" alt="Game intro" className="max-w-md mb-6" />
+        <button
+          onClick={() => { setShowGameIntro(false); setShowGame(true); }}
+          className="px-8 py-4 bg-yellow-400 text-black font-bold rounded-xl text-xl hover:bg-yellow-500 transition-all"
+        >
+          Start Game 🎮
+        </button>
+      </div>
+    );
+  }
+
+  if (showGame) {
+    return (
+      <div className="w-full h-screen bg-black p-4 overflow-hidden">
+        <button onClick={exitGame} className="mb-4 px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200">{t.backButton}</button>
+        <div className="transition-opacity duration-300 opacity-100">
+          <iframe src={`/game.html?g=${gameKey}`} sandbox="allow-scripts allow-same-origin" className="w-full h-screen border-0 rounded-lg"></iframe>
         </div>
       </div>
     );
   }
 
-  const modeLabel = result.mode === "parent" ? "👨‍💼 Parent Mode" : "👧 Kid Mode";
-
-  const answers = result.simple_answer.split('\n').filter(a => a.trim());
-  const explanations = result.explanation.split('\n\n').filter(e => e.trim());
-
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black p-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8 mt-6">
-          <h1 className="text-5xl font-bold text-yellow-400 mb-2 drop-shadow-lg">
-            ⚡ Awesome Job!
-          </h1>
-          <p className="text-xl text-gray-300 opacity-90">Here are all your homework answers</p>
-          <p className="text-lg text-yellow-300 mt-2 font-semibold">{modeLabel}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-purple-400">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">📊</span>
-            <div>
-              <h3 className="text-2xl font-bold text-purple-300">Problem Summary</h3>
-              <p className="text-gray-100 text-lg">
-                {answers.length} problem{answers.length !== 1 ? 's' : ''} solved ✔
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
-          <div className="flex items-center mb-4">
-            <span className="text-4xl mr-3">⭐</span>
-            <h2 className="text-2xl font-bold text-yellow-400">All Answers</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {answers.map((answer, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-700 rounded-lg p-4 border-2 border-yellow-300"
-              >
-                <p className="text-gray-300 text-sm mb-1">Problem {idx + 1}</p>
-                <p className="text-yellow-200 font-bold text-lg">{answer.trim()}</p>
+    <>
+      <div className={showGame ? "pointer-events-none" : ""}>
+        <div className="w-full min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 p-4">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 mb-6">
+              <h1 className="text-4xl font-bold text-purple-600 mb-6">📊 Results</h1>
+              {justPlayed && <p className="text-green-600 font-bold text-lg mb-4">Practice complete 🎉</p>}
+              <div className="space-y-4 mb-8">
+                <p className="text-lg"><strong>Topic:</strong> {result.topic}</p>
+                <p className="text-lg"><strong>Explanation:</strong></p>
+                <div className="bg-gray-100 p-4 rounded-lg max-h-60 overflow-y-auto">{result.explanation}</div>
+                {result.fun_tip && <p className="text-lg text-green-600"><strong>💡 Tip:</strong> {result.fun_tip}</p>}
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <h3 className="text-2xl font-bold text-white mb-4">📖 Detailed Solutions</h3>
-          
-          {explanations.map((explanation, idx) => (
-            <div
-              key={idx}
-              className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-4 shadow-xl border-2 border-blue-400"
-            >
-              <div className="flex items-start gap-3 mb-3">
-                <span className="text-3xl">💡</span>
-                <h4 className="text-xl font-bold text-blue-300">
-                  Problem {idx + 1} - How To Solve It
-                </h4>
-              </div>
-              <div className="text-lg text-gray-100 leading-relaxed whitespace-pre-wrap">
-                {explanation.trim()}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-green-400">
-          <div className="flex items-center mb-3">
-            <span className="text-4xl mr-3">📋</span>
-            <h2 className="text-2xl font-bold text-green-300">Steps to Remember</h2>
-          </div>
-          <div className="text-lg text-gray-100 whitespace-pre-wrap leading-relaxed">
-            {result.detailed_steps}
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-600 to-yellow-600 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
-          <div className="flex items-center mb-3">
-            <span className="text-4xl mr-3">🎯</span>
-            <h2 className="text-2xl font-bold text-white">
-              {result.mode === "parent" ? "Pro Tip!" : "Fun Tip!"}
-            </h2>
-          </div>
-          <p className="text-lg text-white font-semibold">
-            {result.fun_tip}
-          </p>
-        </div>
-
-        {result.topic && result.topic !== "unknown" && (
-          <div className="bg-gradient-to-br from-red-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-red-500">
-            <div className="flex items-center mb-4">
-              <span className="text-4xl mr-3">📺</span>
-              <h2 className="text-2xl font-bold text-red-300">Learn More</h2>
-            </div>
-
-            {videoLoading && (
-              <div className="w-full bg-slate-700 rounded-lg p-8 text-center">
-                <p className="text-gray-300 font-semibold">⏳ Loading video...</p>
-              </div>
-            )}
-
-            {video && !videoLoading && (
-              <div className="space-y-4">
-                <div className="w-full rounded-lg overflow-hidden shadow-lg">
-                  <iframe
-                    src={video.embedUrl}
-                    width="100%"
-                    height="220"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    title={video.title}
-                    className="rounded-lg"
-                  />
-                </div>
-
-                <div className="bg-slate-800 rounded-lg p-4">
-                  <h3 className="text-lg font-bold text-gray-100 line-clamp-2">
-                    {video.title}
-                  </h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    👤 {video.creator}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    🎬 Recommended for ages {video.ageMin}-{video.ageMax}
-                  </p>
-                </div>
-
-                <a
-                  href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full block px-4 py-3 bg-red-600 text-white font-bold rounded-lg text-center hover:bg-red-700 transition-all"
+              <div className="flex gap-4 flex-col sm:flex-row">
+                <button
+                  disabled={played}
+                  onClick={() => setShowGameIntro(true)}
+                  className={`flex-1 px-6 py-3 font-bold rounded-lg text-lg ${
+                    played ? "bg-gray-300 text-gray-600 cursor-not-allowed" : "bg-yellow-400 text-black hover:bg-yellow-500"
+                  }`}
                 >
-                  ▶️ Watch on YouTube
-                </a>
+                  {played ? "Game Played 🎉" : gameLabel}
+                </button>
+                <Link href="/" className="flex-1"><button className="w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-all text-lg">{t.goHome}</button></Link>
               </div>
-            )}
-          </div>
-        )}
-
-        <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-purple-400">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-purple-300">📚 Topic</h3>
-              <p className="text-gray-100 text-lg font-semibold">{result.topic}</p>
             </div>
-            <span className="text-4xl">🏷️</span>
           </div>
-        </div>
-
-        <div className="bg-slate-800 rounded-2xl p-6 mb-8 shadow-xl border-2 border-slate-600">
-          <details className="cursor-pointer group">
-            <summary className="text-lg font-bold text-gray-300 cursor-pointer hover:text-gray-100 flex items-center gap-2 pb-3 border-b-2 border-slate-600 group-open:border-slate-500">
-              📸 What we read from your homework
-              <span className="ml-auto text-gray-400 group-open:rotate-180 transition-transform">
-                ▼
-              </span>
-            </summary>
-            <p className="text-sm text-gray-400 mt-4 whitespace-pre-wrap font-mono bg-slate-900 p-4 rounded">
-              {result.extracted_text}
-            </p>
-          </details>
-        </div>
-
-        <div className="flex gap-4 justify-center mb-8">
-          <Link href="/">
-            <button className="px-8 py-4 bg-white text-blue-900 font-bold rounded-xl text-lg shadow-lg hover:bg-gray-100">
-              📸 Scan Another
-            </button>
-          </Link>
-          <button
-            onClick={() => window.print()}
-            className="px-8 py-4 bg-yellow-400 text-black font-bold rounded-xl text-lg shadow-lg hover:bg-yellow-500"
-          >
-            🖨️ Print Answers
-          </button>
-          <Link href={`/exercise?topic=${result.topic}&language=${localStorage.getItem('lang') || 'en'}`}>
-            <button className="px-8 py-4 bg-purple-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-purple-700 transition-all">
-              ⭐ Practice Exercise
-            </button>
-          </Link>
         </div>
       </div>
-    </div>
+    </>
   );
 }
