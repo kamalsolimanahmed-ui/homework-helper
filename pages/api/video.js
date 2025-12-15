@@ -1,270 +1,201 @@
-// video.js
-
-/**
- * OPERATION-AWARE VIDEO SELECTION
- * 
- * Videos match:
- * 1. Topic/Operation (addition, subtraction, multiplication, etc)
- * 2. Math level (early/basic/normal/advanced)
- * 3. Language
- */
-
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topic = 'addition', math_level = 'basic', language = 'en' } = req.query;
+  const { topic = 'addition', math_level = 'basic', language = 'en', digits = '2', skill = '' } = req.query;
 
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`🎬 === VIDEO SELECTION (OPERATION + LEVEL AWARE) ===`);
+  console.log(`🎬 === VIDEO SEARCH (OPERATION + SKILL AWARE) ===`);
   console.log(`📖 Topic: ${topic}`);
   console.log(`🎯 Math Level: ${math_level}`);
+  console.log(`📊 Digits: ${digits}`);
+  console.log(`🔧 Skill: ${skill}`);
   console.log(`🌍 Language: ${language}`);
   console.log(`${'='.repeat(80)}`);
 
   try {
     // ============================================
-    // VIDEO WHITELIST BY OPERATION & LEVEL
+    // APPROVED CHANNELS ONLY
     // ============================================
 
-    const VIDEO_POOLS = {
-      // ADDITION videos (ALL LEVELS)
-      addition: {
-        early: {
-          en: ['A-ykhY_IoaU', '1ACa-NW8-TU'],
-          es: ['gjpgSLXCdbc'],
-          fr: ['LKXNGWZdmes'],
-        },
-        basic: {
-          en: ['bgiqzAuGaLs'],
-          es: ['NQYwfKUCz8E'],
-          fr: ['XorFEWPieMk'],
-        },
-        normal: {
-          en: ['vksy7e3hY8Q'],
-        },
-        advanced: {
-          en: ['vksy7e3hY8Q'],
-        },
+    const APPROVED_CHANNELS = {
+      math: {
+        en: [
+          'UC4a-Gbdw7vOaccHmFo40b9g',  // Khan Academy Kids
+          'UCyP_9P-sc6nCThfKjZg5V2g',  // Scratch Garden
+          'UCcp9uUuCKxq_fQF1pg6gY4w',  // Happy Learning English
+          'UCtl-lJl5mLglH12RdKuZVBA',  // Smile and Learn
+        ],
+        es: [
+          'UCtl-lJl5mLglH12RdKuZVBA',
+          'UC4a-Gbdw7vOaccHmFo40b9g',
+        ],
+        fr: [
+          'UCxXZbR5WmF8Izy4D2R_Fe8w',  // FrenchFoRKidz
+          'UCkjoE10wU8rrEoXlxqvtQLg',  // Monsieur Steve
+        ],
       },
-
-      // SUBTRACTION videos (ALL LEVELS)
-      subtraction: {
-        early: {
-          en: ['A-ykhY_IoaU', '1ACa-NW8-TU'],
-          es: ['gjpgSLXCdbc'],
-          fr: ['LKXNGWZdmes'],
-        },
-        basic: {
-          en: ['bgiqzAuGaLs'],
-          es: ['NQYwfKUCz8E'],
-          fr: ['XorFEWPieMk'],
-        },
-        normal: {
-          en: ['vksy7e3hY8Q'],
-        },
-        advanced: {
-          en: ['vksy7e3hY8Q'],
-        },
-      },
-
-      // MULTIPLICATION videos (ONLY for normal/advanced)
-      multiplication: {
-        early: null,
-        basic: null,
-        normal: {
-          en: ['vksy7e3hY8Q', 'bgiqzAuGaLs'],
-        },
-        advanced: {
-          en: ['vksy7e3hY8Q'],
-        },
-      },
-
-      // DIVISION videos (ONLY for normal/advanced)
-      division: {
-        early: null,
-        basic: null,
-        normal: {
-          en: ['vksy7e3hY8Q'],
-        },
-        advanced: {
-          en: ['vksy7e3hY8Q'],
-        },
-      },
-
-      // FRACTIONS videos (ONLY for advanced)
-      fractions: {
-        early: null,
-        basic: null,
-        normal: null,
-        advanced: {
-          en: ['vksy7e3hY8Q'],
-        },
-      },
-
-      // FALLBACK for non-math
-      science: {
-        en: ['dxcx35x5L9Y', 'OyTEfLaRn98', 'Td_A9H69eE8'],
+      grammar: {
+        en: [
+          'UCNBFiZk0HOPL3yZ66Fq8rPQ',  // LucyMax English
+          'UC3b4QtzZomJtL_8YVAyO4uA',  // Pebbles Kids Learning
+        ],
       },
     };
 
     // ============================================
-    // NORMALIZE TOPIC
+    // BUILD SEARCH QUERY FROM METADATA
     // ============================================
 
     const topicLower = topic.toLowerCase();
-    const operationMap = {
-      'addition': 'addition',
-      'add': 'addition',
-      'plus': 'addition',
-      'subtraction': 'subtraction',
-      'subtract': 'subtraction',
-      'minus': 'subtraction',
-      'multiplication': 'multiplication',
-      'multiply': 'multiplication',
-      'times': 'multiplication',
-      'division': 'division',
-      'divide': 'division',
-      'fractions': 'fractions',
-      'fraction': 'fractions',
-    };
+    const searchQuery = buildSearchQuery(topicLower, digits, skill, language);
 
-    const normalizedOperation = operationMap[topicLower] || topicLower;
+    console.log(`\n🔍 SEARCH QUERY BUILDER`);
+    console.log(`   Generated query: "${searchQuery}"`);
 
-    console.log(`\n🔍 OPERATION MAPPING`);
-    console.log(`   Input topic: "${topic}"`);
-    console.log(`   Mapped to: "${normalizedOperation}"`);
-
-    // ============================================
-    // CHECK RESTRICTIONS BY LEVEL
-    // ============================================
-
-    console.log(`\n⚠️ LEVEL RESTRICTIONS`);
-
-    let selectedOperation = normalizedOperation;
-
-    if ((math_level === 'early' || math_level === 'basic') && 
-        (normalizedOperation === 'multiplication' || 
-         normalizedOperation === 'division' || 
-         normalizedOperation === 'fractions')) {
-      console.log(`   ❌ ${math_level} level cannot access ${normalizedOperation}`);
-      console.log(`   ⬇️ Downgrading to addition`);
-      selectedOperation = 'addition';
-    } else {
-      console.log(`   ✅ ${math_level} level can access ${normalizedOperation}`);
+    // Determine subject
+    let subject = 'math';
+    if (topicLower === 'grammar' || topicLower === 'reading') {
+      subject = 'grammar';
     }
 
-    // ============================================
-    // GET VIDEO POOL FOR THIS OPERATION + LEVEL
-    // ============================================
+    const approvedChannels = APPROVED_CHANNELS[subject]?.[language] || APPROVED_CHANNELS[subject]?.['en'] || [];
 
-    console.log(`\n🎬 VIDEO SELECTION`);
-    const operationPool = VIDEO_POOLS[selectedOperation];
-
-    if (!operationPool) {
-      console.log(`   ❌ Operation pool "${selectedOperation}" not found`);
-      return respondWithFallback(res, 'A-ykhY_IoaU', topic, selectedOperation, math_level);
+    if (!approvedChannels || approvedChannels.length === 0) {
+      console.log(`   ❌ No approved channels for ${subject}`);
+      return res.status(500).json({ error: 'No approved channels available' });
     }
 
-    const levelPool = operationPool[math_level];
+    console.log(`\n📺 APPROVED CHANNELS`);
+    approvedChannels.forEach(ch => console.log(`   - ${ch}`));
 
-    if (!levelPool) {
-      console.log(`   ❌ No videos for ${selectedOperation} at ${math_level} level`);
-      console.log(`   ⬇️ Falling back to lower level...`);
+    // ============================================
+    // SEARCH YOUTUBE API
+    // ============================================
 
-      const fallbackLevels = {
-        'advanced': ['normal', 'basic', 'early'],
-        'normal': ['basic', 'early'],
-        'basic': ['early'],
-        'early': [],
-      };
+    console.log(`\n🔎 SEARCHING YOUTUBE...`);
 
-      const tryLevels = fallbackLevels[math_level] || [];
-      let foundPool = null;
-      let fallbackLevel = math_level;
+    for (const channelId of approvedChannels) {
+      try {
+        const channelUrl = new URL('https://www.googleapis.com/youtube/v3/search');
+        channelUrl.searchParams.append('part', 'snippet');
+        channelUrl.searchParams.append('q', searchQuery);
+        channelUrl.searchParams.append('channelId', channelId);
+        channelUrl.searchParams.append('type', 'video');
+        channelUrl.searchParams.append('maxResults', '5');
+        channelUrl.searchParams.append('order', 'relevance');
+        channelUrl.searchParams.append('videoEmbeddable', 'true');
+        channelUrl.searchParams.append('key', process.env.YOUTUBE_API_KEY);
 
-      for (const level of tryLevels) {
-        const tryPool = operationPool[level];
-        if (tryPool) {
-          foundPool = tryPool;
-          fallbackLevel = level;
-          console.log(`   ✅ Found videos at ${level} level`);
-          break;
+        const response = await fetch(channelUrl.toString());
+        const data = await response.json();
+
+        if (data.items && data.items.length > 0) {
+          const video = data.items[0];
+          console.log(`\n✅ VIDEO FOUND`);
+          console.log(`   Title: ${video.snippet.title}`);
+          console.log(`   ID: ${video.id.videoId}`);
+          console.log(`   Channel: ${channelId}`);
+          console.log(`${'='.repeat(80)}\n`);
+
+          return res.status(200).json({
+            success: true,
+            videoId: video.id.videoId,
+            title: video.snippet.title,
+            topic: topic,
+            digits: digits,
+            skill: skill,
+            math_level: math_level,
+            language: language,
+            verified: true,
+            source: 'approved_channel',
+          });
         }
+      } catch (err) {
+        console.error(`   ⚠️ Error searching ${channelId}: ${err.message}`);
       }
-
-      if (!foundPool) {
-        console.log(`   ❌ No videos in operation pool, using addition fallback`);
-        return respondWithFallback(res, 'A-ykhY_IoaU', topic, selectedOperation, math_level);
-      }
-
-      return respondWithVideo(res, foundPool, language, topic, selectedOperation, fallbackLevel);
     }
 
-    // ============================================
-    // SELECT RANDOM VIDEO FROM POOL
-    // ============================================
+    console.log(`\n❌ NO VIDEOS FOUND IN APPROVED CHANNELS`);
+    console.log(`   Query used: "${searchQuery}"`);
+    console.log(`   Channels: ${approvedChannels.length}`);
+    console.log(`${'='.repeat(80)}\n`);
 
-    const videosByLanguage = levelPool[language] || levelPool['en'];
-
-    if (!videosByLanguage || videosByLanguage.length === 0) {
-      console.log(`   ⚠️ No videos in ${language}, falling back to English`);
-      const enVideos = levelPool['en'];
-      if (!enVideos || enVideos.length === 0) {
-        return respondWithFallback(res, 'A-ykhY_IoaU', topic, selectedOperation, math_level);
-      }
-      return respondWithVideo(res, levelPool, 'en', topic, selectedOperation, math_level);
-    }
-
-    return respondWithVideo(res, levelPool, language, topic, selectedOperation, math_level);
+    return res.status(404).json({
+      success: false,
+      error: 'No videos found in approved channels',
+      topic: topic,
+      query: searchQuery,
+      channels_searched: approvedChannels.length
+    });
 
   } catch (error) {
     console.error(`❌ ERROR: ${error.message}`);
     console.log(`${'='.repeat(80)}\n`);
-    return respondWithFallback(res, 'A-ykhY_IoaU', topic, 'addition', math_level);
+    return res.status(500).json({ error: error.message });
   }
 }
 
-function respondWithVideo(res, levelPool, language, topic, operation, level) {
-  const videosByLanguage = levelPool[language] || levelPool['en'];
-  const videoId = videosByLanguage[Math.floor(Math.random() * videosByLanguage.length)];
+// ============================================
+// BUILD SEARCH QUERY FROM METADATA
+// ============================================
 
-  console.log(`\n✅ VIDEO SELECTED`);
-  console.log(`   Operation: ${operation}`);
-  console.log(`   Level: ${level}`);
-  console.log(`   Language: ${language}`);
-  console.log(`   ID: ${videoId}`);
-  console.log(`${'='.repeat(80)}\n`);
+function buildSearchQuery(operation, digits, skill, language) {
+  const digitMap = {
+    '1': 'one digit',
+    '2': 'two digit',
+    '3': 'three digit',
+  };
 
-  return res.status(200).json({
-    success: true,
-    videoId: videoId,
-    topic: topic,
-    operation: operation,
-    math_level: level,
-    language: language,
-    verified: true,
-    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`,
-  });
-}
+  const digitLabel = digitMap[String(digits)] || 'basic';
 
-function respondWithFallback(res, fallbackId, topic, operation, level) {
-  console.log(`\n⚠️ FALLBACK USED`);
-  console.log(`   Using universal safe video: ${fallbackId}`);
-  console.log(`   Original topic: ${topic}`);
-  console.log(`   Original operation: ${operation}`);
-  console.log(`   Original level: ${level}`);
-  console.log(`${'='.repeat(80)}\n`);
+  // Build operation-specific queries
+  const queryTemplates = {
+    'addition': {
+      en: skill === 'regrouping'
+        ? `${digitLabel} addition with regrouping for kids`
+        : `${digitLabel} addition for kids`,
+      es: skill === 'regrouping'
+        ? `suma de ${digitLabel} cifras con reagrupación para niños`
+        : `suma de ${digitLabel} cifras para niños`,
+      fr: skill === 'regrouping'
+        ? `addition à ${digitLabel} chiffres avec retenue pour enfants`
+        : `addition à ${digitLabel} chiffres pour enfants`,
+    },
+    'subtraction': {
+      en: skill === 'borrowing'
+        ? `${digitLabel} subtraction with borrowing for kids`
+        : `${digitLabel} subtraction for kids`,
+      es: skill === 'borrowing'
+        ? `resta de ${digitLabel} cifras con préstamo para niños`
+        : `resta de ${digitLabel} cifras para niños`,
+      fr: skill === 'borrowing'
+        ? `soustraction à ${digitLabel} chiffres avec emprunt pour enfants`
+        : `soustraction à ${digitLabel} chiffres pour enfants`,
+    },
+    'multiplication': {
+      en: `${digitLabel} multiplication for kids`,
+      es: `multiplicación de ${digitLabel} cifras para niños`,
+      fr: `multiplication à ${digitLabel} chiffres pour enfants`,
+    },
+    'division': {
+      en: `${digitLabel} division for kids`,
+      es: `división de ${digitLabel} cifras para niños`,
+      fr: `division à ${digitLabel} chiffres pour enfants`,
+    },
+    'grammar': {
+      en: 'english grammar for kids',
+      es: 'gramática inglesa para niños',
+      fr: 'grammaire anglaise pour enfants',
+    },
+    'reading': {
+      en: 'reading for kids',
+      es: 'lectura para niños',
+      fr: 'lecture pour enfants',
+    },
+  };
 
-  return res.status(200).json({
-    success: true,
-    videoId: fallbackId,
-    topic: topic,
-    operation: operation,
-    math_level: level,
-    verified: true,
-    isFallback: true,
-    embedUrl: `https://www.youtube-nocookie.com/embed/${fallbackId}?rel=0`,
-  });
+  const queries = queryTemplates[operation] || queryTemplates['addition'];
+  return queries[language] || queries['en'];
 }

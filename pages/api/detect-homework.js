@@ -1,5 +1,3 @@
-// detect-homework.js
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -13,6 +11,22 @@ export default async function handler(req, res) {
 
   try {
     console.log('🔍 Detecting homework subject and skill...');
+
+    // ============================================
+    // STEP 1: PARSE HOMEWORK STRUCTURE
+    // ============================================
+
+    const { operation, digits, skill, numbers } = parseHomeworkStructure(extractedText);
+
+    console.log(`\n✅ STRUCTURE ANALYSIS`);
+    console.log(`   Operation: ${operation}`);
+    console.log(`   Digits: ${digits}`);
+    console.log(`   Skill: ${skill}`);
+    console.log(`   Numbers: ${numbers.join(', ')}`);
+
+    // ============================================
+    // STEP 2: USE AI FOR SUBJECT + GRADE
+    // ============================================
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -34,10 +48,8 @@ Language: ${language}
 
 Respond with EXACTLY this JSON structure (no extra text):
 {
-  "subject": "math|reading|phonics|vocabulary|antonym|synonym|animal|color|body|geography|science|history",
-  "skill": "brief skill name (e.g., '3-digit addition with carry', 'phonics sh sound')",
+  "subject": "math|reading|phonics|vocabulary|grammar|antonym|synonym",
   "grade_level": "K|1|2|3|4|5|6|7|8|9|10",
-  "difficulty": "easy|medium|hard",
   "confidence": 0.0-1.0
 }`,
           },
@@ -63,6 +75,10 @@ Respond with EXACTLY this JSON structure (no extra text):
       return res.status(500).json({ error: 'Invalid detection response' });
     }
 
+    // ============================================
+    // STEP 3: BUILD FINAL METADATA
+    // ============================================
+
     const topicMap = {
       'addition': 'addition',
       'subtraction': 'subtraction',
@@ -71,52 +87,115 @@ Respond with EXACTLY this JSON structure (no extra text):
       'phonics': 'reading',
       'reading': 'reading',
       'vocabulary': 'vocabulary',
-      'antonym': 'antonym',
-      'synonym': 'synonym',
-      'animal': 'animal',
-      'color': 'color',
-      'body': 'body',
-      'geography': 'geography',
-      'capital': 'geography',
-      'science': 'vocabulary',
-      'history': 'vocabulary'
+      'grammar': 'grammar',
     };
 
-    const topic = topicMap[result.subject.toLowerCase()] || result.subject.toLowerCase();
+    const finalTopic = topicMap[operation] || operation;
 
-    // Map difficulty + grade_level to math_level for consistent operations
-    function mapToMathLevel(difficulty, gradeLevel) {
-      const numGrade = parseInt(gradeLevel) || 0;
-      
-      if (difficulty === 'easy' || numGrade <= 1) {
-        return 'early';
-      } else if (difficulty === 'medium' || numGrade <= 3) {
-        return 'basic';
-      } else if (difficulty === 'hard' || numGrade <= 7) {
-        return 'normal';
-      } else {
-        return 'advanced';
-      }
-    }
+    // Map grade + operation to math_level
+    const mathLevel = mapToMathLevel(result.grade_level, operation);
 
-    const math_level = mapToMathLevel(result.difficulty, result.grade_level);
-
-    console.log(`✅ Detected: ${result.subject} - ${result.skill} (math_level: ${math_level}, confidence: ${result.confidence})`);
+    console.log(`\n📊 FINAL METADATA`);
+    console.log(`   Subject: ${result.subject}`);
+    console.log(`   Topic: ${finalTopic}`);
+    console.log(`   Grade: ${result.grade_level}`);
+    console.log(`   Math Level: ${mathLevel}`);
+    console.log(`   Digits: ${digits}`);
+    console.log(`   Skill: ${skill}`);
+    console.log(`   Confidence: ${result.confidence}`);
 
     return res.status(200).json({
       success: true,
       subject: result.subject,
-      skill: result.skill,
-      topic: topic,
+      topic: finalTopic,
+      operation: operation,
       grade_level: result.grade_level,
-      difficulty: result.difficulty,
-      math_level: math_level,
+      math_level: mathLevel,
+      digits: digits,
+      skill: skill,
+      numbers: numbers,
       confidence: result.confidence,
       language: language,
-      message: `✅ Matches today's homework: ${result.skill}`,
     });
   } catch (error) {
     console.error('Detection error:', error);
     return res.status(500).json({ error: 'Failed to detect homework' });
   }
+}
+
+// ============================================
+// PARSE HOMEWORK STRUCTURE
+// ============================================
+
+function parseHomeworkStructure(text) {
+  // Normalize dashes
+  let normalized = text.replace(/[–—−]/g, '-');
+
+  // Extract all numbers
+  const numberMatches = normalized.match(/\d+/g) || [];
+  const numbers = numberMatches.map(n => parseInt(n, 10));
+  const maxNum = Math.max(...numbers);
+
+  // Determine operation
+  let operation = 'unknown';
+  if (normalized.includes('-') && !normalized.includes('--')) {
+    operation = 'subtraction';
+  } else if (normalized.includes('+')) {
+    operation = 'addition';
+  } else if (normalized.match(/[×*]/)) {
+    operation = 'multiplication';
+  } else if (normalized.match(/[÷/]/)) {
+    operation = 'division';
+  } else if (normalized.toLowerCase().includes('grammar') || normalized.toLowerCase().includes('verb')) {
+    operation = 'grammar';
+  } else if (normalized.toLowerCase().includes('read')) {
+    operation = 'reading';
+  }
+
+  // Determine digit size
+  let digits = 1;
+  if (maxNum >= 100) digits = 3;
+  else if (maxNum >= 10) digits = 2;
+
+  // Determine skill
+  let skill = '';
+
+  if (operation === 'subtraction' && digits >= 2) {
+    // Check if borrowing needed (e.g., 32 - 17 needs borrowing)
+    if (numberMatches.length >= 2) {
+      const [num1, num2] = [parseInt(numberMatches[0]), parseInt(numberMatches[1])];
+      if (hasBorrowingNeeded(num1, num2)) {
+        skill = 'borrowing';
+      }
+    }
+  } else if (operation === 'addition' && digits >= 2) {
+    skill = 'regrouping';
+  } else if (operation === 'multiplication' && digits >= 2) {
+    skill = 'multi_digit';
+  }
+
+  return { operation, digits, skill, numbers };
+}
+
+function hasBorrowingNeeded(num1, num2) {
+  const str1 = String(num1);
+  const str2 = String(num2);
+
+  // Check each digit position
+  for (let i = 0; i < str1.length; i++) {
+    const pos1 = parseInt(str1[i], 10);
+    const pos2 = parseInt(str2[i], 10);
+    if (pos1 < pos2) return true;
+  }
+  return false;
+}
+
+function mapToMathLevel(gradeLevel, operation) {
+  const grade = parseInt(gradeLevel) || 0;
+
+  // Grade-based mapping
+  if (grade <= 1) return 'early';
+  if (grade <= 3) return 'basic';
+  if (grade <= 7) return 'normal';
+  return 'advanced';
 }

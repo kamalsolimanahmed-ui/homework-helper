@@ -1,5 +1,3 @@
-// exercise.js
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -20,24 +18,6 @@ function getDifficultyBand(level) {
   return 'hard';
 }
 
-function getSubjectFromTopic(topic) {
-  const subjectMap = {
-    addition: 'math',
-    subtraction: 'math',
-    multiplication: 'math',
-    division: 'math',
-    reading: 'english',
-    vocabulary: 'english',
-    grammar: 'english',
-    phonics: 'english',
-    french: 'french',
-    spanish: 'spanish',
-    german: 'german',
-    arabic: 'arabic',
-  };
-  return subjectMap[topic?.toLowerCase()] || 'vocabulary';
-}
-
 export default function Exercise() {
   const router = useRouter();
   const { topic = 'addition', language = 'en', level: initialLevel = '2' } = router.query;
@@ -51,24 +31,7 @@ export default function Exercise() {
   const [error, setError] = useState(null);
   const [currentLevel, setCurrentLevel] = useState(parseInt(initialLevel) || 2);
   const [templateFamily, setTemplateFamily] = useState('');
-  const [videoData, setVideoData] = useState(null);
-  const [lastVideoId, setLastVideoId] = useState(null);
   const [detectedMathLevel, setDetectedMathLevel] = useState('basic');
-
-  async function fetchVideo(topic, mathLevel, language, lastId) {
-    try {
-      const res = await fetch(
-        `/api/video?topic=${encodeURIComponent(topic)}&math_level=${mathLevel}&language=${language}&lastVideoId=${lastId || ''}`
-      );
-      const data = await res.json();
-      if (data.success) {
-        setVideoData(data);
-        setLastVideoId(data.videoId);
-      }
-    } catch (err) {
-      console.error('Video fetch error:', err);
-    }
-  }
 
   useEffect(() => {
     if (!topic || !language) return;
@@ -104,8 +67,6 @@ export default function Exercise() {
         history.last_level = currentLevel;
         history.updated_at = new Date().toISOString();
         localStorage.setItem('learningHistory', JSON.stringify(history));
-
-        await fetchVideo(topic, mathLevel, language, lastVideoId);
       } catch (err) {
         console.error('Game fetch error:', err);
         setError(t.fetchError);
@@ -178,7 +139,6 @@ export default function Exercise() {
   function handleChangeLevel(newLevel) {
     if (newLevel >= 0 && newLevel <= 10 && newLevel !== currentLevel) {
       setCurrentLevel(newLevel);
-      fetchVideo(topic, detectedMathLevel, language, lastVideoId);
     }
   }
 
@@ -238,16 +198,6 @@ export default function Exercise() {
           <h1 className="text-5xl font-bold text-yellow-400 mb-3 drop-shadow-lg">{game.theme}</h1>
           <p className="text-xl text-gray-300">{game.instructions}</p>
         </div>
-
-        {videoData && videoData.success && (
-          <div className="mb-8 bg-slate-800 rounded-xl p-6 border-2 border-yellow-400">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-4">🎬 Learn More</h2>
-            <div className="aspect-video bg-black rounded-lg overflow-hidden mb-4">
-              <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${videoData.videoId}`} title={videoData.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="w-full h-full"></iframe>
-            </div>
-            <p className="text-gray-300 text-center">{videoData.title}</p>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div>
