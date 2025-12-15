@@ -9,6 +9,7 @@ export default function Results() {
   const [videoLoading, setVideoLoading] = useState(false);
   const [showGameOverlay, setShowGameOverlay] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -61,6 +62,37 @@ export default function Results() {
       console.error("❌ Video error:", error);
       setVideoLoading(false);
     }
+  }
+
+  function getDigitsFromGrade(gradeLevel) {
+    const grade = parseInt(gradeLevel) || 0;
+    if (grade <= 1) return 1;
+    if (grade <= 3) return 2;
+    return 3;
+  }
+
+  function openGame() {
+    const gameUrl = '/kid-arcade-games/math-blaster/index.html';
+    setSelectedGame(gameUrl);
+    setGameStarted(false);
+    setShowGameOverlay(true);
+  }
+
+  function handleGameStart() {
+    const isMathTopic = ['addition', 'subtraction', 'multiplication', 'division'].includes(
+      result.topic?.toLowerCase()
+    );
+
+    window.GAME_CONFIG = {
+      subject: isMathTopic ? 'math' : 'language',
+      operation: result.topic || 'addition',
+      digits: result.digits || getDigitsFromGrade(result.grade_level),
+      level: parseInt(result.grade_level) || 2,
+      language: localStorage.getItem('lang') || 'en'
+    };
+
+    console.log('🎮 Game config injected:', window.GAME_CONFIG);
+    setGameStarted(true);
   }
 
   if (loading) {
@@ -254,16 +286,11 @@ export default function Results() {
           >
             🖨️ Print Answers
           </button>
-          <Link href={`/exercise?topic=${result.topic}&language=${localStorage.getItem('lang') || 'en'}`}>
-            <button className="px-8 py-4 bg-purple-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-purple-700 transition-all">
-              ⭐ Practice Exercise
-            </button>
-          </Link>
         </div>
 
         <div className="flex justify-center mb-8">
           <button
-            onClick={() => setShowGameOverlay(true)}
+            onClick={openGame}
             className="px-8 py-4 bg-green-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-green-700 transition-all"
           >
             🎮 Play a Fun Game
@@ -300,7 +327,7 @@ export default function Results() {
                 }}
               />
               <button
-                onClick={() => setGameStarted(true)}
+                onClick={handleGameStart}
                 style={{
                   padding: '15px 40px',
                   fontSize: '24px',
@@ -319,6 +346,7 @@ export default function Results() {
                 onClick={() => {
                   setShowGameOverlay(false);
                   setGameStarted(false);
+                  setSelectedGame(null);
                 }}
                 style={{
                   padding: '15px 40px',
@@ -337,7 +365,7 @@ export default function Results() {
           ) : (
             <div style={{ width: '100%', height: '100%', position: 'relative' }}>
               <iframe
-                src="/games/game.html"
+                src={selectedGame}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -349,6 +377,7 @@ export default function Results() {
                 onClick={() => {
                   setShowGameOverlay(false);
                   setGameStarted(false);
+                  setSelectedGame(null);
                 }}
                 style={{
                   position: 'absolute',
