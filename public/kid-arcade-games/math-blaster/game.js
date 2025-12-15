@@ -10,7 +10,22 @@ const defaultConfig = {
     level: 1
 };
 
-let config = window.GAME_CONFIG || defaultConfig;
+function getConfigFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    subject: params.get('subject') || 'math',
+    operation: params.get('operation') || 'addition',
+    digits: parseInt(params.get('digits')) || 1,
+    level: parseInt(params.get('level')) || 1,
+    language: params.get('language') || 'en'
+  };
+}
+
+let config = {
+  ...defaultConfig,
+  ...getConfigFromURL(),
+  ...(window.GAME_CONFIG || {})
+};
 
 // setup canvas
 const canvas = document.getElementById('game-canvas');
@@ -357,13 +372,7 @@ function loop(timestamp) {
 
 // Game Start Logic
 function initGame() {
-    // 1. Safe Config Bootstrap
-    config = window.GAME_CONFIG || defaultConfig;
-
-    // 2. Console Debugging
     console.log("[Math Blaster] started", config);
-
-    // 3. Start
     resize();
     generateQuestion();
     lastTime = performance.now();

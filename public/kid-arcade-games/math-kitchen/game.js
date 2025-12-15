@@ -8,7 +8,23 @@ const defaultConfig = {
     operation: "addition",
     level: 1
 };
-let config = window.GAME_CONFIG || defaultConfig;
+
+function getConfigFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    subject: params.get('subject') || 'math',
+    operation: params.get('operation') || 'addition',
+    digits: parseInt(params.get('digits')) || 1,
+    level: parseInt(params.get('level')) || 1,
+    language: params.get('language') || 'en'
+  };
+}
+
+let config = {
+  ...defaultConfig,
+  ...getConfigFromURL(),
+  ...(window.GAME_CONFIG || {})
+};
 
 const goalEl = document.getElementById('recipe-goal');
 const pot = document.getElementById('pot');
@@ -251,7 +267,6 @@ function fail() {
 
 // Game Start Logic
 function initGame() {
-    config = window.GAME_CONFIG || defaultConfig;
     console.log("[Math Kitchen] started", config);
     newOrder();
 }

@@ -9,7 +9,23 @@ const defaultConfig = {
     level: 1,
     digits: 1
 };
-let config = window.GAME_CONFIG || defaultConfig;
+
+function getConfigFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    subject: params.get('subject') || 'math',
+    operation: params.get('operation') || 'addition',
+    digits: parseInt(params.get('digits')) || 1,
+    level: parseInt(params.get('level')) || 1,
+    language: params.get('language') || 'en'
+  };
+}
+
+let config = {
+  ...defaultConfig,
+  ...getConfigFromURL(),
+  ...(window.GAME_CONFIG || {})
+};
 
 const board = document.getElementById('game-board');
 const movesEl = document.getElementById('moves');
@@ -102,7 +118,7 @@ function generateContent(pairCount) {
         } else {
             // Language - simple doubles or Word pair
             // For standalone demo, use Emojis
-            const fruits = ['🍎', '🍌', '🍇', '🍓', '🍒', '🍍', '🥝', '🥑', '🌽', '🥕', '🥦', '🍄', '🥜', '🥥', '🍋'];
+            const fruits = ['🍎', '🌌', '🇬', '🍓', '🍒', '🍍', '🥝', '🥥', '🌽', '🥕', '🥦', '🍄', '🥜', '🥥', '🍋'];
             const words = ['Apple', 'Banana', 'Grape', 'Berry', 'Cherry', 'Pine', 'Kiwi', 'Avo', 'Corn', 'Carrot', 'Broc', 'Mush', 'Nut', 'Coco', 'Lemon'];
 
             let idx = i % fruits.length;
@@ -215,7 +231,6 @@ function unflipCards() {
 // Start
 // Game Start Logic
 function initGame() {
-    config = window.GAME_CONFIG || defaultConfig;
     console.log("[Match Master] started", config);
     startGame();
 }
