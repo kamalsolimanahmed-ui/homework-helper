@@ -57,6 +57,19 @@ export default function Results() {
     return 3;
   }
 
+  function selectGame(operation, digits) {
+    const gameMap = {
+      'addition': ['math-blaster', 'math-kitchen'],
+      'subtraction': ['match-master'],
+      'multiplication': ['math-blaster'],
+      'division': ['math-blaster']
+    };
+
+    const games = gameMap[operation] || ['math-blaster'];
+    const index = (digits - 1) % games.length;
+    return games[index];
+  }
+
   function playGame() {
     const validOps = ['addition', 'subtraction', 'multiplication', 'division'];
     const operation = result.topic?.toLowerCase();
@@ -66,15 +79,18 @@ export default function Results() {
       return;
     }
 
+    const digits = result.digits || getDigitsFromGrade(result.grade_level);
+    const game = selectGame(operation, digits);
+
     const params = new URLSearchParams({
       subject: 'math',
       operation: operation,
-      digits: result.digits || getDigitsFromGrade(result.grade_level),
+      digits: digits,
       level: parseInt(result.grade_level) || 2,
       language: localStorage.getItem('lang') || 'en'
     });
 
-    window.location.href = `/kid-arcade-games/math-blaster/game.html?${params.toString()}`;
+    window.location.href = `/kid-arcade-games/${game}/game.html?${params.toString()}`;
   }
 
   if (loading) {
