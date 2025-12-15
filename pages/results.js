@@ -7,9 +7,6 @@ export default function Results() {
   const [loading, setLoading] = useState(true);
   const [video, setVideo] = useState(null);
   const [videoLoading, setVideoLoading] = useState(false);
-  const [showGameOverlay, setShowGameOverlay] = useState(false);
-  const [gameStarted, setGameStarted] = useState(false);
-  const [selectedGame, setSelectedGame] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -28,17 +25,6 @@ export default function Results() {
       fetchVideo(resultData.topic, resultData.math_level);
     }
   }, [router]);
-
-  useEffect(() => {
-    if (showGameOverlay) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [showGameOverlay]);
 
   async function fetchVideo(topic, mathLevel) {
     try {
@@ -71,28 +57,24 @@ export default function Results() {
     return 3;
   }
 
-  function openGame() {
-    const gameUrl = '/kid-arcade-games/math-blaster/index.html';
-    setSelectedGame(gameUrl);
-    setGameStarted(false);
-    setShowGameOverlay(true);
-  }
+  function playGame() {
+    const validOps = ['addition', 'subtraction', 'multiplication', 'division'];
+    const operation = result.topic?.toLowerCase();
 
-  function handleGameStart() {
-    const isMathTopic = ['addition', 'subtraction', 'multiplication', 'division'].includes(
-      result.topic?.toLowerCase()
-    );
+    if (!operation || !validOps.includes(operation)) {
+      console.error(`❌ Invalid or missing operation: ${operation}. Expected one of: ${validOps.join(', ')}`);
+      return;
+    }
 
-    window.GAME_CONFIG = {
-      subject: isMathTopic ? 'math' : 'language',
-      operation: result.topic || 'addition',
+    const params = new URLSearchParams({
+      subject: 'math',
+      operation: operation,
       digits: result.digits || getDigitsFromGrade(result.grade_level),
       level: parseInt(result.grade_level) || 2,
       language: localStorage.getItem('lang') || 'en'
-    };
+    });
 
-    console.log('🎮 Game config injected:', window.GAME_CONFIG);
-    setGameStarted(true);
+    window.location.href = `/kid-arcade-games/math-blaster/index.html?${params.toString()}`;
   }
 
   if (loading) {
@@ -290,116 +272,13 @@ export default function Results() {
 
         <div className="flex justify-center mb-8">
           <button
-            onClick={openGame}
+            onClick={playGame}
             className="px-8 py-4 bg-green-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-green-700 transition-all"
           >
             🎮 Play a Fun Game
           </button>
         </div>
       </div>
-
-      {showGameOverlay && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          {!gameStarted ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <img
-                src="/games/intro-bg.png"
-                alt="Game Intro"
-                style={{
-                  maxWidth: '90vw',
-                  maxHeight: '60vh',
-                  borderRadius: '20px',
-                  marginBottom: '30px'
-                }}
-              />
-              <button
-                onClick={handleGameStart}
-                style={{
-                  padding: '15px 40px',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  backgroundColor: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  marginRight: '15px'
-                }}
-              >
-                Start Game
-              </button>
-              <button
-                onClick={() => {
-                  setShowGameOverlay(false);
-                  setGameStarted(false);
-                  setSelectedGame(null);
-                }}
-                style={{
-                  padding: '15px 40px',
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                Back
-              </button>
-            </div>
-          ) : (
-            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-              <iframe
-                src={selectedGame}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none'
-                }}
-                title="Math Game"
-              />
-              <button
-                onClick={() => {
-                  setShowGameOverlay(false);
-                  setGameStarted(false);
-                  setSelectedGame(null);
-                }}
-                style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  padding: '12px 30px',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  zIndex: 10000
-                }}
-              >
-                Back
-              </button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
