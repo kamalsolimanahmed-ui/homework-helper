@@ -74,7 +74,7 @@ export default function Results() {
       language: localStorage.getItem('lang') || 'en'
     });
 
-    window.location.href = `/kid-arcade-games/math-blaster/index.html?${params.toString()}`;
+    window.location.href = `/kid-arcade-games/math-blaster/game.html?${params.toString()}`;
   }
 
   if (loading) {
