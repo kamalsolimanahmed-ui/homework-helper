@@ -23,9 +23,8 @@ export default function Results() {
     setResult(resultData);
     setLoading(false);
 
-    // Fetch YouTube video based on topic
     if (resultData.topic && resultData.topic !== "unknown") {
-      fetchVideo(resultData.topic);
+      fetchVideo(resultData.topic, resultData.math_level);
     }
   }, [router]);
 
@@ -40,13 +39,14 @@ export default function Results() {
     };
   }, [showGameOverlay]);
 
-  async function fetchVideo(topic) {
+  async function fetchVideo(topic, mathLevel) {
     try {
       setVideoLoading(true);
+      const language = localStorage.getItem('lang') || 'en';
 
-      console.log(`🎬 Fetching video for topic: ${topic}`);
-
-      const res = await fetch(`/api/video?topic=${encodeURIComponent(topic)}`);
+      const res = await fetch(
+        `/api/video?topic=${encodeURIComponent(topic)}&math_level=${mathLevel}&language=${language}`
+      );
       const data = await res.json();
 
       if (!res.ok) {
@@ -55,7 +55,6 @@ export default function Results() {
         return;
       }
 
-      console.log(`✅ Video found: ${data.title}`);
       setVideo(data);
       setVideoLoading(false);
     } catch (error) {
@@ -91,15 +90,12 @@ export default function Results() {
   }
 
   const modeLabel = result.mode === "parent" ? "👨‍💼 Parent Mode" : "👧 Kid Mode";
-
-  // Split answers and explanations by problem number
   const answers = result.simple_answer.split('\n').filter(a => a.trim());
   const explanations = result.explanation.split('\n\n').filter(e => e.trim());
 
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-black p-4">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8 mt-6">
           <h1 className="text-5xl font-bold text-yellow-400 mb-2 drop-shadow-lg">
             ⚡ Awesome Job!
@@ -108,7 +104,6 @@ export default function Results() {
           <p className="text-lg text-yellow-300 mt-2 font-semibold">{modeLabel}</p>
         </div>
 
-        {/* Summary Card */}
         <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-purple-400">
           <div className="flex items-center gap-3">
             <span className="text-4xl">📊</span>
@@ -121,7 +116,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* All Answers Card */}
         <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
           <div className="flex items-center mb-4">
             <span className="text-4xl mr-3">⭐</span>
@@ -129,10 +123,7 @@ export default function Results() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {answers.map((answer, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-700 rounded-lg p-4 border-2 border-yellow-300"
-              >
+              <div key={idx} className="bg-slate-700 rounded-lg p-4 border-2 border-yellow-300">
                 <p className="text-gray-300 text-sm mb-1">Problem {idx + 1}</p>
                 <p className="text-yellow-200 font-bold text-lg">{answer.trim()}</p>
               </div>
@@ -140,15 +131,10 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Individual Problem Solutions */}
         <div className="mb-6">
           <h3 className="text-2xl font-bold text-white mb-4">📖 Detailed Solutions</h3>
-          
           {explanations.map((explanation, idx) => (
-            <div
-              key={idx}
-              className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-4 shadow-xl border-2 border-blue-400"
-            >
+            <div key={idx} className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-4 shadow-xl border-2 border-blue-400">
               <div className="flex items-start gap-3 mb-3">
                 <span className="text-3xl">💡</span>
                 <h4 className="text-xl font-bold text-blue-300">
@@ -162,7 +148,6 @@ export default function Results() {
           ))}
         </div>
 
-        {/* Steps to Remember */}
         <div className="bg-gradient-to-br from-blue-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-green-400">
           <div className="flex items-center mb-3">
             <span className="text-4xl mr-3">📋</span>
@@ -173,7 +158,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Fun Tip Card */}
         <div className="bg-gradient-to-br from-orange-600 to-yellow-600 rounded-2xl p-6 mb-6 shadow-xl border-4 border-yellow-400">
           <div className="flex items-center mb-3">
             <span className="text-4xl mr-3">🎯</span>
@@ -181,12 +165,9 @@ export default function Results() {
               {result.mode === "parent" ? "Pro Tip!" : "Fun Tip!"}
             </h2>
           </div>
-          <p className="text-lg text-white font-semibold">
-            {result.fun_tip}
-          </p>
+          <p className="text-lg text-white font-semibold">{result.fun_tip}</p>
         </div>
 
-        {/* YouTube Video Section */}
         {result.topic && result.topic !== "unknown" && (
           <div className="bg-gradient-to-br from-red-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-4 border-red-500">
             <div className="flex items-center mb-4">
@@ -237,7 +218,6 @@ export default function Results() {
           </div>
         )}
 
-        {/* Topic Card */}
         <div className="bg-gradient-to-br from-purple-900 to-slate-800 rounded-2xl p-6 mb-6 shadow-xl border-2 border-purple-400">
           <div className="flex items-center justify-between">
             <div>
@@ -248,7 +228,6 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Extracted Text (Optional) */}
         <div className="bg-slate-800 rounded-2xl p-6 mb-8 shadow-xl border-2 border-slate-600">
           <details className="cursor-pointer group">
             <summary className="text-lg font-bold text-gray-300 cursor-pointer hover:text-gray-100 flex items-center gap-2 pb-3 border-b-2 border-slate-600 group-open:border-slate-500">
@@ -263,7 +242,6 @@ export default function Results() {
           </details>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-4 justify-center mb-8">
           <Link href="/">
             <button className="px-8 py-4 bg-white text-blue-900 font-bold rounded-xl text-lg shadow-lg hover:bg-gray-100">
@@ -283,7 +261,6 @@ export default function Results() {
           </Link>
         </div>
 
-        {/* Game Button */}
         <div className="flex justify-center mb-8">
           <button
             onClick={() => setShowGameOverlay(true)}
@@ -294,7 +271,6 @@ export default function Results() {
         </div>
       </div>
 
-      {/* Game Overlay */}
       {showGameOverlay && (
         <div
           style={{
