@@ -1,3 +1,5 @@
+// detect-homework.js
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -82,7 +84,24 @@ Respond with EXACTLY this JSON structure (no extra text):
 
     const topic = topicMap[result.subject.toLowerCase()] || result.subject.toLowerCase();
 
-    console.log(`✅ Detected: ${result.subject} - ${result.skill} (confidence: ${result.confidence})`);
+    // Map difficulty + grade_level to math_level for consistent operations
+    function mapToMathLevel(difficulty, gradeLevel) {
+      const numGrade = parseInt(gradeLevel) || 0;
+      
+      if (difficulty === 'easy' || numGrade <= 1) {
+        return 'early';
+      } else if (difficulty === 'medium' || numGrade <= 3) {
+        return 'basic';
+      } else if (difficulty === 'hard' || numGrade <= 7) {
+        return 'normal';
+      } else {
+        return 'advanced';
+      }
+    }
+
+    const math_level = mapToMathLevel(result.difficulty, result.grade_level);
+
+    console.log(`✅ Detected: ${result.subject} - ${result.skill} (math_level: ${math_level}, confidence: ${result.confidence})`);
 
     return res.status(200).json({
       success: true,
@@ -91,6 +110,7 @@ Respond with EXACTLY this JSON structure (no extra text):
       topic: topic,
       grade_level: result.grade_level,
       difficulty: result.difficulty,
+      math_level: math_level,
       confidence: result.confidence,
       language: language,
       message: `✅ Matches today's homework: ${result.skill}`,

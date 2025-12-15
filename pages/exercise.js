@@ -1,3 +1,5 @@
+// exercise.js
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -51,11 +53,12 @@ export default function Exercise() {
   const [templateFamily, setTemplateFamily] = useState('');
   const [videoData, setVideoData] = useState(null);
   const [lastVideoId, setLastVideoId] = useState(null);
+  const [detectedMathLevel, setDetectedMathLevel] = useState('basic');
 
-  async function fetchVideo(subject, difficultyBand, lastId) {
+  async function fetchVideo(topic, mathLevel, language, lastId) {
     try {
       const res = await fetch(
-        `/api/video?subject=${subject}&difficulty_band=${difficultyBand}&lastVideoId=${lastId || ''}`
+        `/api/video?topic=${encodeURIComponent(topic)}&math_level=${mathLevel}&language=${language}&lastVideoId=${lastId || ''}`
       );
       const data = await res.json();
       if (data.success) {
@@ -78,13 +81,16 @@ export default function Exercise() {
         setDraggedItem(null);
 
         const saved = localStorage.getItem('homeworkResult');
-        const detectedMathLevel = saved ? JSON.parse(saved).detected_math_level : 'basic';
-        const problemsParam = saved ? JSON.parse(saved).extracted_text : '';
+        const homeworkData = saved ? JSON.parse(saved) : {};
+        const mathLevel = homeworkData.math_level || 'basic';
+        const problemsParam = homeworkData.extracted_text || '';
 
-        console.log(`📊 Detected math level: ${detectedMathLevel}`);
+        setDetectedMathLevel(mathLevel);
+
+        console.log(`📊 Detected math level: ${mathLevel}`);
 
         const res = await fetch(
-          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&math_level=${detectedMathLevel}&problems=${encodeURIComponent(problemsParam)}`
+          `/api/arcade-matching?topic=${encodeURIComponent(topic)}&language=${language}&level=${currentLevel}&math_level=${mathLevel}&problems=${encodeURIComponent(problemsParam)}`
         );
 
         if (!res.ok) throw new Error(t.fetchError);
@@ -99,9 +105,7 @@ export default function Exercise() {
         history.updated_at = new Date().toISOString();
         localStorage.setItem('learningHistory', JSON.stringify(history));
 
-        const subject = getSubjectFromTopic(topic);
-        const diffBand = getDifficultyBand(currentLevel);
-        await fetchVideo(subject, diffBand, lastVideoId);
+        await fetchVideo(topic, mathLevel, language, lastVideoId);
       } catch (err) {
         console.error('Game fetch error:', err);
         setError(t.fetchError);
@@ -174,9 +178,7 @@ export default function Exercise() {
   function handleChangeLevel(newLevel) {
     if (newLevel >= 0 && newLevel <= 10 && newLevel !== currentLevel) {
       setCurrentLevel(newLevel);
-      const subject = getSubjectFromTopic(topic);
-      const diffBand = getDifficultyBand(newLevel);
-      fetchVideo(subject, diffBand, lastVideoId);
+      fetchVideo(topic, detectedMathLevel, language, lastVideoId);
     }
   }
 
