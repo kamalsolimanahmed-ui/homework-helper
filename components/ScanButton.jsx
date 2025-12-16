@@ -6,6 +6,7 @@ export default function ScanButton() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const processingRef = useRef(false);
+  const cameraStartingRef = useRef(false); // FIX 1: Lock to prevent multiple getUserMedia calls
 
   const [loading, setLoading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -25,6 +26,8 @@ export default function ScanButton() {
   useEffect(() => {
     return () => {
       stopCamera();
+      setCameraOpen(false); // FIX 4: Clear UI state on unmount
+      cameraStartingRef.current = false; // FIX 4: Reset lock on unmount
     };
   }, []);
 
@@ -76,6 +79,10 @@ export default function ScanButton() {
         throw new Error(result.error || "Processing failed");
       }
 
+      // FIX 3: Stop camera before navigation
+      stopCamera();
+      setCameraOpen(false);
+
       localStorage.setItem("homeworkResult", JSON.stringify(result));
       setStatusText("Done!");
 
@@ -89,13 +96,13 @@ export default function ScanButton() {
       setStatusText("");
       processingRef.current = false;
     }
-  }, []);
+  }, [stopCamera]);
 
   // ============ FILE PICKER (UPLOAD) ============
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log("📁 File selected:", file.name);
+      console.log("📄 File selected:", file.name);
       setLoading(true);
       setStatusText("Processing...");
       processFile(file);
@@ -120,9 +127,10 @@ export default function ScanButton() {
   const openCamera = useCallback(async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    if (loading) return;
+    if (loading || cameraStartingRef.current) return; // FIX 2: Add lock check
 
     try {
+      cameraStartingRef.current = true; // FIX 2: Set lock before starting
       setCameraOpen(true);
       setCameraReady(false);
       setStatusText("Starting camera...");
@@ -160,6 +168,7 @@ export default function ScanButton() {
       }
     } catch (error) {
       console.error("❌ Camera error:", error);
+      cameraStartingRef.current = false; // FIX 2: Reset lock on error
       setCameraOpen(false);
       setStatusText("");
       
@@ -178,6 +187,7 @@ export default function ScanButton() {
     e?.stopPropagation?.();
     stopCamera();
     setCameraOpen(false);
+    cameraStartingRef.current = false; // Reset lock when closing
     setStatusText("");
   }, [stopCamera]);
 
@@ -206,6 +216,7 @@ export default function ScanButton() {
       // Stop camera immediately after drawing
       stopCamera();
       setCameraOpen(false);
+      cameraStartingRef.current = false; // Reset lock after capture
 
       setStatusText("Processing...");
 
@@ -233,6 +244,7 @@ export default function ScanButton() {
       setStatusText("");
       stopCamera();
       setCameraOpen(false);
+      cameraStartingRef.current = false; // Reset lock on error
       processingRef.current = false;
     }
   }, [loading, stopCamera, processFile]);
