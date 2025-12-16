@@ -5,29 +5,21 @@ export default function ScanButton() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const processingRef = useRef(false);
-  const cameraStartingRef = useRef(false); // FIX 1: Lock to prevent multiple getUserMedia calls
-
+  
   const [loading, setLoading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
 
-  // Detect mobile
-  useEffect(() => {
-    const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    );
-    setIsMobile(mobile);
-  }, []);
-
-  // Cleanup on unmount
+  // CRITICAL: Hard stop on unmount
   useEffect(() => {
     return () => {
-      stopCamera();
-      setCameraOpen(false); // FIX 4: Clear UI state on unmount
-      cameraStartingRef.current = false; // FIX 4: Reset lock on unmount
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+        streamRef.current = null;
+      }
     };
   }, []);
 
@@ -38,24 +30,22 @@ export default function ScanButton() {
       streamRef.current = null;
     }
     setCameraReady(false);
+    setCameraOpen(false);
   }, []);
 
-  // ============ PROCESS FILE ============
+  // Process file
   const processFile = useCallback(async (fileOrBlob) => {
-    if (processingRef.current) {
-      console.log("⚠️ Already processing");
+    if (!fileOrBlob || fileOrBlob.size === 0) {
+      alert("No image data");
       return;
     }
-    processingRef.current = true;
 
     try {
-      console.log("📸 Processing:", fileOrBlob?.size, "bytes");
-
-      if (!fileOrBlob || fileOrBlob.size === 0) {
-        throw new Error("No image data");
-      }
-
+      setLoading(true);
       setStatusText("Uploading...");
+
+      // STOP CAMERA BEFORE LEAVING PAGE
+      stopCamera();
 
       const formData = new FormData();
       formData.append("file", fileOrBlob, "photo.jpg");
@@ -73,183 +63,152 @@ export default function ScanButton() {
       });
 
       const result = await response.json();
-      console.log("📥 Response:", response.status);
 
       if (!response.ok || !result.success) {
         throw new Error(result.error || "Processing failed");
       }
 
-      // FIX 3: Stop camera before navigation
-      stopCamera();
-      setCameraOpen(false);
-
       localStorage.setItem("homeworkResult", JSON.stringify(result));
       setStatusText("Done!");
 
-      // Use window.location - most reliable on mobile
-      window.location.href = "/results";
+      // Navigate after cleanup
+      setTimeout(() => {
+        window.location.href = "/results";
+      }, 500);
 
     } catch (error) {
-      console.error("❌ Error:", error);
+      console.error("Error:", error);
       alert("Error: " + error.message);
       setLoading(false);
       setStatusText("");
-      processingRef.current = false;
     }
   }, [stopCamera]);
 
-  // ============ FILE PICKER (UPLOAD) ============
+  // File upload handler
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log("📄 File selected:", file.name);
-      setLoading(true);
-      setStatusText("Processing...");
       processFile(file);
     }
-    // Reset input
     if (inputRef.current) inputRef.current.value = "";
   }, [processFile]);
 
   const openFilePicker = useCallback((e) => {
     e?.preventDefault?.();
-    e?.stopPropagation?.();
     if (loading) return;
-    
-    // IMPORTANT: Remove capture attribute to open gallery/file picker
     if (inputRef.current) {
       inputRef.current.removeAttribute("capture");
       inputRef.current.click();
     }
   }, [loading]);
 
-  // ============ CUSTOM CAMERA (getUserMedia) ============
+  // CAMERA STARTS ONLY ON BUTTON CLICK - CRITICAL FOR CHROME
   const openCamera = useCallback(async (e) => {
     e?.preventDefault?.();
-    e?.stopPropagation?.();
-    if (loading || cameraStartingRef.current) return; // FIX 2: Add lock check
+    if (loading || cameraOpen) return;
 
     try {
-      cameraStartingRef.current = true; // FIX 2: Set lock before starting
       setCameraOpen(true);
       setCameraReady(false);
       setStatusText("Starting camera...");
 
-      const constraints = {
+      // GET MEDIA - ONLY HERE, ONLY ON CLICK
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1920, min: 640 },
           height: { ideal: 1080, min: 480 },
         },
         audio: false,
-      };
+      });
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
-      // Wait for video element to be available
+      // Wait for video element
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
+
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play()
+          videoRef.current
+            .play()
             .then(() => {
               setCameraReady(true);
               setStatusText("");
             })
-            .catch((err) => {
-              console.error("Play error:", err);
+            .catch(() => {
               setCameraReady(true);
               setStatusText("");
             });
         };
       }
     } catch (error) {
-      console.error("❌ Camera error:", error);
-      cameraStartingRef.current = false; // FIX 2: Reset lock on error
-      setCameraOpen(false);
+      console.error("Camera error:", error);
+      stopCamera();
       setStatusText("");
-      
+
       if (error.name === "NotAllowedError") {
-        alert("Camera permission denied. Please allow camera access and try again, or use 'Upload Photo' instead.");
+        alert(
+          "Camera permission denied. Please allow camera access and try again, or use 'Upload Photo' instead."
+        );
       } else if (error.name === "NotFoundError") {
         alert("No camera found. Please use 'Upload Photo' instead.");
       } else {
         alert("Camera error: " + error.message + "\n\nTry 'Upload Photo' instead.");
       }
     }
-  }, [loading]);
+  }, [loading, cameraOpen, stopCamera]);
 
   const closeCamera = useCallback((e) => {
     e?.preventDefault?.();
-    e?.stopPropagation?.();
     stopCamera();
-    setCameraOpen(false);
-    cameraStartingRef.current = false; // Reset lock when closing
     setStatusText("");
   }, [stopCamera]);
 
   const capturePhoto = useCallback((e) => {
     e?.preventDefault?.();
-    e?.stopPropagation?.();
 
     if (!videoRef.current || !canvasRef.current || loading) return;
 
-    console.log("📸 Capturing photo...");
-    setLoading(true);
-    setStatusText("Capturing...");
-
     try {
+      setLoading(true);
+      setStatusText("Capturing...");
+
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      // Set canvas to video dimensions
       canvas.width = video.videoWidth || 1280;
       canvas.height = video.videoHeight || 720;
 
-      // Draw frame
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Stop camera immediately after drawing
       stopCamera();
-      setCameraOpen(false);
-      cameraStartingRef.current = false; // Reset lock after capture
 
-      setStatusText("Processing...");
-
-      // Convert to blob
       canvas.toBlob(
         (blob) => {
           if (blob && blob.size > 0) {
-            console.log("✅ Blob created:", blob.size, "bytes");
             processFile(blob);
           } else {
-            console.error("❌ Empty blob");
             alert("Failed to capture photo. Please try again.");
             setLoading(false);
             setStatusText("");
-            processingRef.current = false;
           }
         },
         "image/jpeg",
         0.9
       );
     } catch (error) {
-      console.error("❌ Capture error:", error);
+      console.error("Capture error:", error);
       alert("Capture failed: " + error.message);
       setLoading(false);
       setStatusText("");
       stopCamera();
-      setCameraOpen(false);
-      cameraStartingRef.current = false; // Reset lock on error
-      processingRef.current = false;
     }
   }, [loading, stopCamera, processFile]);
 
-  // ============ CAMERA UI ============
+  // CAMERA UI
   if (cameraOpen) {
     return (
       <div
@@ -265,7 +224,6 @@ export default function ScanButton() {
           flexDirection: "column",
         }}
       >
-        {/* Video Preview */}
         <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
           <video
             ref={videoRef}
@@ -279,7 +237,6 @@ export default function ScanButton() {
             }}
           />
 
-          {/* Viewfinder overlay */}
           <div
             style={{
               position: "absolute",
@@ -295,7 +252,6 @@ export default function ScanButton() {
             }}
           />
 
-          {/* Status message */}
           {statusText && (
             <div
               style={{
@@ -315,7 +271,6 @@ export default function ScanButton() {
             </div>
           )}
 
-          {/* Instruction text */}
           {cameraReady && !loading && (
             <div
               style={{
@@ -335,10 +290,8 @@ export default function ScanButton() {
           )}
         </div>
 
-        {/* Hidden canvas */}
         <canvas ref={canvasRef} style={{ display: "none" }} />
 
-        {/* Bottom controls */}
         <div
           style={{
             background: "rgba(0,0,0,0.9)",
@@ -349,7 +302,6 @@ export default function ScanButton() {
             gap: "20px",
           }}
         >
-          {/* Cancel button */}
           <button
             type="button"
             onClick={closeCamera}
@@ -369,7 +321,6 @@ export default function ScanButton() {
             ✕
           </button>
 
-          {/* Capture button */}
           <button
             type="button"
             onClick={capturePhoto}
@@ -390,17 +341,15 @@ export default function ScanButton() {
             {loading ? "⏳" : "📸"}
           </button>
 
-          {/* Placeholder for symmetry */}
           <div style={{ width: "60px", height: "60px" }} />
         </div>
       </div>
     );
   }
 
-  // ============ MAIN BUTTONS UI ============
+  // MAIN UI
   return (
     <>
-      {/* Loading overlay */}
       {loading && statusText && (
         <div
           style={{
@@ -432,7 +381,6 @@ export default function ScanButton() {
         </div>
       )}
 
-      {/* Main buttons */}
       <div
         style={{
           display: "flex",
@@ -442,7 +390,6 @@ export default function ScanButton() {
           marginTop: "24px",
         }}
       >
-        {/* Camera button - uses getUserMedia (works on mobile without refresh) */}
         <button
           type="button"
           onClick={openCamera}
@@ -462,7 +409,6 @@ export default function ScanButton() {
           📸 Scan Homework
         </button>
 
-        {/* Upload button - opens file picker */}
         <button
           type="button"
           onClick={openFilePicker}
@@ -483,7 +429,6 @@ export default function ScanButton() {
         </button>
       </div>
 
-      {/* Hidden file input - NO capture attribute */}
       <input
         ref={inputRef}
         type="file"
