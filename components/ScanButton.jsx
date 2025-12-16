@@ -107,7 +107,7 @@ export default function ScanButton() {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: "environment" },
+          facingMode: { exact: "environment" },
           width: { ideal: 1920, min: 640 },
           height: { ideal: 1080, min: 480 },
         },
@@ -120,16 +120,13 @@ export default function ScanButton() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-
-        // ANDROID FIX: Force playback on Android Chrome
-        videoRef.current.setAttribute("playsinline", true);
         videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+
         await videoRef.current.play();
 
-        videoRef.current.onloadedmetadata = () => {
-          setCameraReady(true);
-          setStatusText("");
-        };
+        setCameraReady(true);
+        setStatusText("");
       }
     } catch (error) {
       console.error("Camera error:", error);
@@ -211,17 +208,30 @@ export default function ScanButton() {
           flexDirection: "column",
         }}
       >
-        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <div
+          style={{
+            flex: 1,
+            position: "relative",
+            overflow: "hidden",
+            width: "100%",
+            height: "100%",
+          }}
+        >
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
             style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              backgroundColor: "black",
+              transform: "none",
+              margin: 0,
+              padding: 0,
             }}
           />
 
@@ -253,6 +263,7 @@ export default function ScanButton() {
                 borderRadius: "12px",
                 fontSize: "18px",
                 fontWeight: "bold",
+                zIndex: 1,
               }}
             >
               {statusText}
@@ -271,6 +282,7 @@ export default function ScanButton() {
                 padding: "10px 20px",
                 borderRadius: "20px",
                 fontSize: "14px",
+                zIndex: 1,
               }}
             >
               Point at homework and tap Capture
