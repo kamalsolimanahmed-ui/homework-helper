@@ -57,6 +57,55 @@ async function extractTextFromImage(imageBase64) {
   }
 }
 
+
+async function detectHomeworkMetadata(extractedText, language) {
+  try {
+    console.log('Detecting homework operation, digits, and skill...');
+    
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/detect-homework`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        extractedText,
+        language,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.warn('Detection API error, using defaults:', data.error);
+      return {
+        operation: 'unknown',
+        digits: 1,
+        skill: '',
+        numbers: [],
+        grade_level: '2',
+        subject: 'math',
+      };
+    }
+
+    console.log('Metadata detected:');
+    console.log(`   Operation: ${data.operation}`);
+    console.log(`   Digits: ${data.digits}`);
+    console.log(`   Skill: ${data.skill}`);
+    
+    return data;
+  } catch (error) {
+    console.error('Detection error:', error);
+    return {
+      operation: 'unknown',
+      digits: 1,
+      skill: '',
+      numbers: [],
+      grade_level: '2',
+      subject: 'math',
+    };
+  }
+}
+
 async function generateExplanation(homeworkText, lang = 'en', parent = false) {
   try {
     let langName = 'English';
@@ -328,6 +377,9 @@ export default async function handler(req, res) {
           console.log(`📄 Text extracted: ${extractedText.length} characters`);
           console.log(`📋 Preview: ${extractedText.substring(0, 100)}...`);
 
+          // DETECT HOMEWORK METADATA (operation, digits, skill, etc.)
+          const metadata = await detectHomeworkMetadata(extractedText, lang);
+
           // GENERATE EXPLANATION FOR ALL PROBLEMS
           const explanation = await generateExplanation(extractedText, lang, parent);
 
@@ -344,7 +396,13 @@ export default async function handler(req, res) {
             topic: explanation.topic,
             detected_math_level: explanation.detected_math_level,
             mode: parent ? 'parent' : 'kid',
-          });
+          ,
+            operation: metadata.operation,
+            digits: metadata.digits,
+            skill: metadata.skill,
+            numbers: metadata.numbers,
+            grade_level: metadata.grade_level,
+            subject: metadata.subject,});
         } catch (error) {
           console.error(`❌ ERROR: ${error.message}`);
           console.log(`${'='.repeat(70)}\n`);
