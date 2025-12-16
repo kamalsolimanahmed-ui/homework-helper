@@ -107,7 +107,7 @@ export default function ScanButton() {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { exact: "environment" },
+          facingMode: { ideal: "environment" },
           width: { ideal: 1920, min: 640 },
           height: { ideal: 1080, min: 480 },
         },
@@ -198,12 +198,12 @@ export default function ScanButton() {
       <div
         style={{
           position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          inset: 0,
+          width: "100vw",
+          height: "100svh",
           background: "#000",
           zIndex: 99999,
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
         }}
@@ -224,14 +224,10 @@ export default function ScanButton() {
             muted
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
+              inset: 0,
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              transform: "none",
-              margin: 0,
-              padding: 0,
             }}
           />
 
