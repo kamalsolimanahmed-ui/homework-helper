@@ -11,7 +11,6 @@ export default function ScanButton() {
   const [statusText, setStatusText] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
 
-  // CRITICAL: Hard stop on unmount
   useEffect(() => {
     return () => {
       if (streamRef.current) {
@@ -23,7 +22,6 @@ export default function ScanButton() {
     };
   }, []);
 
-  // Stop camera helper
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -33,7 +31,6 @@ export default function ScanButton() {
     setCameraOpen(false);
   }, []);
 
-  // Process file
   const processFile = useCallback(async (fileOrBlob) => {
     if (!fileOrBlob || fileOrBlob.size === 0) {
       alert("No image data");
@@ -44,7 +41,6 @@ export default function ScanButton() {
       setLoading(true);
       setStatusText("Uploading...");
 
-      // STOP CAMERA BEFORE LEAVING PAGE
       stopCamera();
 
       const formData = new FormData();
@@ -71,7 +67,6 @@ export default function ScanButton() {
       localStorage.setItem("homeworkResult", JSON.stringify(result));
       setStatusText("Done!");
 
-      // Navigate after cleanup
       setTimeout(() => {
         window.location.href = "/results";
       }, 500);
@@ -84,7 +79,6 @@ export default function ScanButton() {
     }
   }, [stopCamera]);
 
-  // File upload handler
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -102,7 +96,6 @@ export default function ScanButton() {
     }
   }, [loading]);
 
-  // CAMERA STARTS ONLY ON BUTTON CLICK - CRITICAL FOR CHROME
   const openCamera = useCallback(async (e) => {
     e?.preventDefault?.();
     if (loading || cameraOpen) return;
@@ -112,7 +105,6 @@ export default function ScanButton() {
       setCameraReady(false);
       setStatusText("Starting camera...");
 
-      // GET MEDIA - ONLY HERE, ONLY ON CLICK
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
@@ -124,23 +116,19 @@ export default function ScanButton() {
 
       streamRef.current = stream;
 
-      // Wait for video element
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
 
+        // ANDROID FIX: Force playback on Android Chrome
+        videoRef.current.setAttribute("playsinline", true);
+        videoRef.current.muted = true;
+        await videoRef.current.play();
+
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current
-            .play()
-            .then(() => {
-              setCameraReady(true);
-              setStatusText("");
-            })
-            .catch(() => {
-              setCameraReady(true);
-              setStatusText("");
-            });
+          setCameraReady(true);
+          setStatusText("");
         };
       }
     } catch (error) {
@@ -208,7 +196,6 @@ export default function ScanButton() {
     }
   }, [loading, stopCamera, processFile]);
 
-  // CAMERA UI
   if (cameraOpen) {
     return (
       <div
@@ -234,6 +221,7 @@ export default function ScanButton() {
               width: "100%",
               height: "100%",
               objectFit: "cover",
+              backgroundColor: "black",
             }}
           />
 
@@ -347,7 +335,6 @@ export default function ScanButton() {
     );
   }
 
-  // MAIN UI
   return (
     <>
       {loading && statusText && (
