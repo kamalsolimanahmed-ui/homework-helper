@@ -27,6 +27,14 @@ let config = {
   ...(window.GAME_CONFIG || {})
 };
 
+// FORCE digits from URL (override everything - bulletproof)
+const urlParams = new URLSearchParams(window.location.search);
+const urlDigits = parseInt(urlParams.get('digits'));
+if (!isNaN(urlDigits)) {
+  config.digits = urlDigits;
+  console.log("✅ Forced digits from URL:", config.digits);
+}
+
 // setup canvas
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
