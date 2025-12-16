@@ -57,44 +57,88 @@ async function extractTextFromImage(imageBase64) {
   }
 }
 
+// ============ DETECT HOMEWORK STRUCTURE (inline) ============
+function parseHomeworkStructure(text) {
+  // Normalize dashes
+  let normalized = text.replace(/[–—−]/g, '-');
 
-async function detectHomeworkMetadata(extractedText, language) {
-  try {
-    console.log('Detecting homework operation, digits, and skill...');
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/detect-homework`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        extractedText,
-        language,
-      }),
-    });
+  // Extract all numbers
+  const numberMatches = normalized.match(/\d+/g) || [];
+  const numbers = numberMatches.map(n => parseInt(n, 10));
+  
+  // Determine digit size ONLY from largest detected number
+  let digits = 1;
+  if (numbers.length > 0) {
+    const maxNum = Math.max(...numbers);
+    if (maxNum >= 100) digits = 3;
+    else if (maxNum >= 10) digits = 2;
+    else digits = 1;
+  }
 
-    const data = await response.json();
+  // Determine operation
+  let operation = 'unknown';
+  if (normalized.includes('-') && !normalized.includes('--')) {
+    operation = 'subtraction';
+  } else if (normalized.includes('+')) {
+    operation = 'addition';
+  } else if (normalized.match(/[×*]/)) {
+    operation = 'multiplication';
+  } else if (normalized.match(/[÷/]/)) {
+    operation = 'division';
+  }
 
-    if (!response.ok) {
-      console.warn('Detection API error, using defaults:', data.error);
-      return {
-        operation: 'unknown',
-        digits: 1,
-        skill: '',
-        numbers: [],
-        grade_level: '2',
-        subject: 'math',
-      };
+  // Determine skill
+  let skill = '';
+  if (operation === 'subtraction' && digits >= 2) {
+    if (numberMatches.length >= 2) {
+      const [num1, num2] = [parseInt(numberMatches[0]), parseInt(numberMatches[1])];
+      if (hasBorrowingNeeded(num1, num2)) {
+        skill = 'borrowing';
+      }
     }
+  } else if (operation === 'addition' && digits >= 2) {
+    skill = 'regrouping';
+  } else if (operation === 'multiplication' && digits >= 2) {
+    skill = 'multi_digit';
+  }
 
-    console.log('Metadata detected:');
-    console.log(`   Operation: ${data.operation}`);
-    console.log(`   Digits: ${data.digits}`);
-    console.log(`   Skill: ${data.skill}`);
+  return { operation, digits, skill, numbers };
+}
+
+function hasBorrowingNeeded(num1, num2) {
+  const str1 = String(num1);
+  const str2 = String(num2);
+
+  for (let i = 0; i < str1.length; i++) {
+    const pos1 = parseInt(str1[i], 10);
+    const pos2 = parseInt(str2[i], 10);
+    if (pos1 < pos2) return true;
+  }
+  return false;
+}
+
+// ============ INLINE METADATA DETECTION ============
+function detectHomeworkMetadata(extractedText, language) {
+  try {
+    console.log('🔍 Detecting homework operation, digits, and skill...');
     
-    return data;
+    const { operation, digits, skill, numbers } = parseHomeworkStructure(extractedText);
+    
+    console.log('✅ Metadata detected:');
+    console.log(`   Operation: ${operation}`);
+    console.log(`   Digits: ${digits}`);
+    console.log(`   Skill: ${skill}`);
+    
+    return {
+      operation,
+      digits,
+      skill,
+      numbers,
+      grade_level: '2',
+      subject: 'math',
+    };
   } catch (error) {
-    console.error('Detection error:', error);
+    console.error('❌ Detection error:', error);
     return {
       operation: 'unknown',
       digits: 1,
@@ -181,7 +225,7 @@ FORMAT - Return ONLY valid JSON (no markdown):
 }`;
     }
 
-    console.log('📝 Calling OpenAI to solve ALL problems...');
+    console.log('🔍 Calling OpenAI to solve ALL problems...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -210,7 +254,7 @@ FORMAT - Return ONLY valid JSON (no markdown):
     }
 
     const responseText = data.choices[0].message.content;
-    console.log('🔥 Response received, parsing...');
+    console.log('📥 Response received, parsing...');
 
     let explanation;
     try {
@@ -296,12 +340,12 @@ FORMAT - Return ONLY valid JSON (no markdown):
     }
 
     explanation.topic = finalTopic;
-    console.log(`   🔑 FINAL TOPIC: "${finalTopic}"\n`);
+    console.log(`   🏷️ FINAL TOPIC: "${finalTopic}"\n`);
 
     // ============================================
     // ADD MATH LEVEL DETECTION
     // ============================================
-    console.log(`\n🔢 MATH LEVEL DETECTION`);
+    console.log(`\n📊 MATH LEVEL DETECTION`);
     const mathLevel = detectMathLevel(homeworkText);
     console.log(`   Detected math level: ${mathLevel}\n`);
     explanation.detected_math_level = mathLevel;
@@ -326,7 +370,7 @@ export default async function handler(req, res) {
 
   console.log(`\n${'='.repeat(70)}`);
   console.log(`📋 NEW REQUEST - ${new Date().toLocaleTimeString()}`);
-  console.log(`🏹 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
+  console.log(`🎯 Mode: ${parent ? 'PARENT' : 'KID'} | Language: ${lang}`);
   console.log(`${'='.repeat(70)}`);
 
   try {
@@ -377,8 +421,8 @@ export default async function handler(req, res) {
           console.log(`📄 Text extracted: ${extractedText.length} characters`);
           console.log(`📋 Preview: ${extractedText.substring(0, 100)}...`);
 
-          // DETECT HOMEWORK METADATA (operation, digits, skill, etc.)
-          const metadata = await detectHomeworkMetadata(extractedText, lang);
+          // DETECT HOMEWORK METADATA (operation, digits, skill, etc.) - INLINE
+          const metadata = detectHomeworkMetadata(extractedText, lang);
 
           // GENERATE EXPLANATION FOR ALL PROBLEMS
           const explanation = await generateExplanation(extractedText, lang, parent);
@@ -401,7 +445,8 @@ export default async function handler(req, res) {
             skill: metadata.skill,
             numbers: metadata.numbers,
             grade_level: metadata.grade_level,
-            subject: metadata.subject,});
+            subject: metadata.subject,
+          });
         } catch (error) {
           console.error(`❌ ERROR: ${error.message}`);
           console.log(`${'='.repeat(70)}\n`);
