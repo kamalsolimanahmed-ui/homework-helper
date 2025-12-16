@@ -396,7 +396,6 @@ export default async function handler(req, res) {
             topic: explanation.topic,
             detected_math_level: explanation.detected_math_level,
             mode: parent ? 'parent' : 'kid',
-          ,
             operation: metadata.operation,
             digits: metadata.digits,
             skill: metadata.skill,
