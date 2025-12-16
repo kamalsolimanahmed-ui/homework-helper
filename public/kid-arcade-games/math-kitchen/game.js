@@ -26,6 +26,14 @@ let config = {
   ...(window.GAME_CONFIG || {})
 };
 
+// FORCE digits from URL (override everything - bulletproof)
+const urlParams = new URLSearchParams(window.location.search);
+const urlDigits = parseInt(urlParams.get('digits'));
+if (!isNaN(urlDigits)) {
+  config.digits = urlDigits;
+  console.log("✅ Forced digits from URL:", config.digits);
+}
+
 const goalEl = document.getElementById('recipe-goal');
 const pot = document.getElementById('pot');
 const potLabel = document.getElementById('pot-label');

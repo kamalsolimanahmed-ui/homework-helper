@@ -10,14 +10,6 @@ export default function Results() {
   const router = useRouter();
 
   useEffect(() => {
-    // BULLETPROOF GATE: Prevent execution before scan finishes
-    const scanComplete = localStorage.getItem('scanComplete');
-    if (!scanComplete) {
-      console.warn("⚠️ Scan not complete - redirecting home");
-      router.push('/');
-      return;
-    }
-
     const saved = localStorage.getItem("homeworkResult");
 
     if (!saved) {
@@ -79,9 +71,6 @@ export default function Results() {
     
     // Calculate digits
     const digits = result.digits || 1;
-
-    // CLEAN UP: Remove scanComplete flag before navigating
-    localStorage.removeItem('scanComplete');
 
     const params = new URLSearchParams({
       subject: 'math',

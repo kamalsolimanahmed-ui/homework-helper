@@ -26,6 +26,14 @@ let config = {
   ...(window.GAME_CONFIG || {})
 };
 
+// FORCE digits from URL (override everything - bulletproof)
+const urlParams = new URLSearchParams(window.location.search);
+const urlDigits = parseInt(urlParams.get('digits'));
+if (!isNaN(urlDigits)) {
+  config.digits = urlDigits;
+  console.log("✅ Forced digits from URL:", config.digits);
+}
+
 const bubbleContainer = document.getElementById('bubble-container');
 const tray = document.getElementById('word-tray');
 const targetEl = document.getElementById('target-word');
