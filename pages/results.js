@@ -50,24 +50,11 @@ export default function Results() {
     }
   }
 
-  function getDigitsFromGrade(gradeLevel) {
-    const grade = parseInt(gradeLevel) || 0;
-    if (grade <= 1) return 1;
-    if (grade <= 3) return 2;
-    return 3;
-  }
-
-  function selectGame(operation, digits) {
-    const gameMap = {
-      'addition': ['math-blaster', 'math-kitchen'],
-      'subtraction': ['match-master'],
-      'multiplication': ['math-blaster'],
-      'division': ['math-blaster']
-    };
-
-    const games = gameMap[operation] || ['math-blaster'];
-    const index = (digits - 1) % games.length;
-    return games[index];
+  function selectGame() {
+    // Random rotation between 3 math games
+    const games = ['math-blaster', 'match-master', 'math-kitchen'];
+    const randomIndex = Math.floor(Math.random() * games.length);
+    return games[randomIndex];
   }
 
   function playGame() {
@@ -79,8 +66,11 @@ export default function Results() {
       return;
     }
 
-    const digits = result.digits || getDigitsFromGrade(result.grade_level);
-    const game = selectGame(operation, digits);
+    // Select random game from 3 options
+    const game = selectGame();
+    
+    // Calculate digits
+    const digits = result.digits || 1;
 
     const params = new URLSearchParams({
       subject: 'math',
@@ -140,7 +130,7 @@ export default function Results() {
             <div>
               <h3 className="text-2xl font-bold text-purple-300">Problem Summary</h3>
               <p className="text-gray-100 text-lg">
-                {answers.length} problem{answers.length !== 1 ? 's' : ''} solved ✔
+                {answers.length} problem{answers.length !== 1 ? 's' : ''} solved ✓
               </p>
             </div>
           </div>
