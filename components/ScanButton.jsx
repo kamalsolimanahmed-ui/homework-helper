@@ -5,7 +5,7 @@ export default function ScanButton() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  
+
   const [loading, setLoading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [statusText, setStatusText] = useState("");
@@ -39,7 +39,7 @@ export default function ScanButton() {
 
     try {
       setLoading(true);
-      setStatusText("Uploading...");
+      setStatusText("Working on it! Almost there... 10-15 seconds");
 
       stopCamera();
 

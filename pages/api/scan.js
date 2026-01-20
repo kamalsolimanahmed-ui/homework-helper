@@ -68,7 +68,7 @@ function parseHomeworkStructure(text) {
   // Extract all numbers
   const numberMatches = normalized.match(/\d+/g) || [];
   const numbers = numberMatches.map(n => parseInt(n, 10));
-  
+
   // Determine digit size ONLY from largest detected number
   let digits = 1;
   if (numbers.length > 0) {
@@ -124,14 +124,14 @@ function hasBorrowingNeeded(num1, num2) {
 function detectHomeworkMetadata(extractedText, language) {
   try {
     console.log('🔍 Detecting homework operation, digits, and skill...');
-    
+
     const { operation, digits, skill, numbers } = parseHomeworkStructure(extractedText);
-    
+
     console.log('✅ Metadata detected:');
     console.log(`   Operation: ${operation}`);
     console.log(`   Digits: ${digits}`);
     console.log(`   Skill: ${skill}`);
-    
+
     return {
       operation,
       digits,
@@ -265,7 +265,7 @@ FORMAT - Return ONLY valid JSON (no markdown):
       console.log('✅ JSON parsed successfully');
     } catch (parseError) {
       console.error('⚠️ JSON parse failed, extracting...');
-      
+
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -297,7 +297,7 @@ FORMAT - Return ONLY valid JSON (no markdown):
     }
 
     if (!explanation.fun_tip) {
-      explanation.fun_tip = parent 
+      explanation.fun_tip = parent
         ? 'Help your child review all solutions.'
         : 'You solved all the problems! Amazing work!';
     }
@@ -360,6 +360,52 @@ FORMAT - Return ONLY valid JSON (no markdown):
   } catch (error) {
     console.error('❌ Error generating explanations:', error);
     throw error;
+  }
+}
+
+// ============ LOGGING FUNCTION ============
+const fs = require('fs');
+const path = require('path');
+
+function saveScanLog(data) {
+  try {
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    const logFile = path.join(dataDir, 'scan_logs.json');
+    let logs = [];
+
+    if (fs.existsSync(logFile)) {
+      try {
+        const fileContent = fs.readFileSync(logFile, 'utf8');
+        logs = JSON.parse(fileContent);
+      } catch (e) {
+        console.error('Error reading log file, starting new:', e);
+      }
+    }
+
+    const newLog = {
+      timestamp: new Date().toISOString(),
+      language: data.language || 'en',
+      mode: data.mode || 'kid',
+      topic: data.topic || 'unknown',
+      grade_level: data.grade_level || '2',
+      subject: data.subject || 'math'
+    };
+
+    logs.push(newLog);
+
+    // Keep only last 1000 logs to prevent file from getting too huge
+    if (logs.length > 1000) {
+      logs = logs.slice(-1000);
+    }
+
+    fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
+    console.log('✅ Scan logged successfully');
+  } catch (error) {
+    console.error('❌ Failed to save scan log:', error);
   }
 }
 
@@ -433,6 +479,15 @@ export default async function handler(req, res) {
           console.log(`\n✅ SUCCESS! Sending response with ALL solutions...`);
           console.log(`${'='.repeat(70)}\n`);
 
+          // LOG SUCCESSFUL SCAN
+          saveScanLog({
+            language: lang,
+            mode: parent ? 'parent' : 'kid',
+            topic: explanation.topic,
+            grade_level: metadata.grade_level,
+            subject: metadata.subject,
+          });
+
           return res.status(200).json({
             success: true,
             extracted_text: extractedText,
@@ -453,7 +508,7 @@ export default async function handler(req, res) {
         } catch (error) {
           console.error(`❌ ERROR: ${error.message}`);
           console.log(`${'='.repeat(70)}\n`);
-          
+
           return res.status(500).json({
             error: error.message || 'Failed to process homework',
             timestamp: new Date().toISOString(),
