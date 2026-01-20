@@ -1,5 +1,14 @@
 export default function handler(req, res) {
     try {
+        // 1. Password Protection
+        const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+        const auth = req.headers.authorization?.replace('Bearer ', '');
+
+        // Only enforce if ADMIN_PASSWORD is set in env
+        if (ADMIN_PASSWORD && auth !== ADMIN_PASSWORD) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const fs = require('fs');
         const path = require('path');
 

@@ -2,32 +2,85 @@ import { useEffect, useState } from 'react';
 
 export default function AdminDashboard() {
     const [stats, setStats] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [password, setPassword] = useState('');
+    const [authenticated, setAuthenticated] = useState(false);
+    const [error, setError] = useState('');
 
-    const fetchStats = async () => {
+    const fetchStats = async (pwd) => {
         try {
-            const res = await fetch('/api/admin/stats');
+            setLoading(true);
+            setError('');
+
+            const res = await fetch('/api/admin/stats', {
+                headers: {
+                    'Authorization': `Bearer ${pwd || password}`
+                }
+            });
+
+            if (res.status === 401) {
+                setLoading(false);
+                setError('Invalid password');
+                setAuthenticated(false);
+                return;
+            }
+
+            if (!res.ok) throw new Error('Failed to fetch');
+
             const data = await res.json();
             setStats(data);
+            setAuthenticated(true);
             setLoading(false);
         } catch (err) {
             console.error(err);
+            setError('Connection error');
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchStats();
-        const interval = setInterval(fetchStats, 30000); // Poll every 30s
-        return () => clearInterval(interval);
-    }, []);
+    const handleLogin = (e) => {
+        e.preventDefault();
+        fetchStats(password);
+    };
 
-    if (loading) return <div style={styles.loading}>Loading Dashboard...</div>;
+    // Auto-refresh using saved password state if authenticated
+    useEffect(() => {
+        if (authenticated) {
+            const interval = setInterval(() => fetchStats(password), 30000);
+            return () => clearInterval(interval);
+        }
+    }, [authenticated, password]);
+
+    if (!authenticated) {
+        return (
+            <div style={styles.loginContainer}>
+                <form onSubmit={handleLogin} style={styles.loginBox}>
+                    <h2 style={{ color: '#04133A', marginBottom: '20px' }}>Admin Login</h2>
+                    <input
+                        type="password"
+                        placeholder="Enter Admin Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        style={styles.input}
+                    />
+                    {error && <p style={{ color: 'red', margin: '10px 0' }}>{error}</p>}
+                    <button type="submit" style={styles.button} disabled={loading}>
+                        {loading ? 'Checking...' : 'Login'}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    if (loading && !stats) return <div style={styles.loading}>Loading Dashboard...</div>;
     if (!stats) return <div style={styles.loading}>Error loading stats</div>;
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>Admin Dashboard</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h1 style={styles.title}>Admin Dashboard</h1>
+                <button onClick={() => setAuthenticated(false)} style={styles.logoutBtn}>Logout</button>
+            </div>
 
             <div style={styles.grid}>
                 <div style={styles.card}>
@@ -97,6 +150,51 @@ const styles = {
         minHeight: '100vh',
         fontFamily: 'Arial, sans-serif',
         color: '#333'
+    },
+    loginContainer: {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#04133A',
+        fontFamily: 'Arial, sans-serif'
+    },
+    loginBox: {
+        background: 'white',
+        padding: '40px',
+        borderRadius: '12px',
+        textAlign: 'center',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        width: '100%',
+        maxWidth: '400px'
+    },
+    input: {
+        width: '100%',
+        padding: '12px',
+        fontSize: '16px',
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        marginBottom: '20px',
+        boxSizing: 'border-box'
+    },
+    button: {
+        width: '100%',
+        padding: '12px',
+        backgroundColor: '#4CAF50',
+        color: 'white',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: '16px',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+    },
+    logoutBtn: {
+        padding: '8px 16px',
+        backgroundColor: '#f44336',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer'
     },
     loading: {
         padding: '50px',
