@@ -9,6 +9,8 @@ export const config = {
 
 async function extractTextFromImage(imageBase64) {
   try {
+    const keyStatus = process.env.OPENAI_API_KEY ? `Present (${process.env.OPENAI_API_KEY.substring(0, 5)}...)` : 'MISSING';
+    console.log(`🔑 OpenAI Key Status: ${keyStatus}`);
     console.log('🖼️ Sending image to OpenAI Vision API for text extraction...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -52,8 +54,9 @@ async function extractTextFromImage(imageBase64) {
     console.log(`📄 Extracted length: ${extractedText.length} characters`);
     return extractedText;
   } catch (error) {
-    console.error('❌ OCR Error:', error);
-    throw new Error('Failed to extract text from image');
+    console.error('❌ OCR Error Details:', error);
+    // Propagate the actual error message so we can see it in the frontend/logs
+    throw new Error(`OCR Vision Failed: ${error.message}`);
   }
 }
 
