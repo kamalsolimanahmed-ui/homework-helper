@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+      window.GAME_CONFIG = window.GAME_CONFIG || {
+        subject: "math",
+        operation: "addition",
+        digits: 1,
+        level: 1,
+        language: "en"
+      };
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Match Master</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="ui">
+        <div id="score-panel">Moves: <span id="moves">0</span></div>
+        <div id="level-display">Level 1</div>
+    </div>
+
+    <div id="game-board">
+        <!-- Cards injected here -->
+    </div>
+
+    <div id="win-screen" class="hidden">
+        <h1>Perfect!</h1>
+        <button onclick="startGame()">Play Again</button>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+ 
+</html>
